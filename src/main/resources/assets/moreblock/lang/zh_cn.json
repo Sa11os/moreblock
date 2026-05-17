@@ -1,0 +1,10 @@
+{
+  "itemGroup.moreblock.more_items": "MoreBlock-更多物品",
+  "disconnect.moreblock.configured_pack.title": "无法进入服务器",
+  "disconnect.moreblock.configured_pack.timeout": "无法进入服务器：未收到客户端导入方块包校验信息。\n请确认客户端已安装最新的 MoreBlock，并重新进入服务器。",
+  "disconnect.moreblock.configured_pack.mismatch.header": "无法进入服务器：导入方块包与服务端不一致",
+  "disconnect.moreblock.configured_pack.mismatch.missing": "客户端缺少以下包：",
+  "disconnect.moreblock.configured_pack.mismatch.extra": "客户端多出以下包：",
+  "disconnect.moreblock.configured_pack.mismatch.different": "以下包内容与服务端不一致：",
+  "disconnect.moreblock.configured_pack.mismatch.footer": "请同步客户端与服务端的导入方块包后再试。"
+}

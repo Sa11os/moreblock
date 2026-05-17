@@ -1,0 +1,10 @@
+{
+  "itemGroup.moreblock.more_items": "MoreBlock - More Items",
+  "disconnect.moreblock.configured_pack.title": "Cannot Join Server",
+  "disconnect.moreblock.configured_pack.timeout": "Cannot join server: client imported block pack verification was not received.\nPlease make sure the client has the latest MoreBlock installed and try again.",
+  "disconnect.moreblock.configured_pack.mismatch.header": "Cannot join server: imported block packs do not match the server",
+  "disconnect.moreblock.configured_pack.mismatch.missing": "Client is missing these packs:",
+  "disconnect.moreblock.configured_pack.mismatch.extra": "Client has extra packs:",
+  "disconnect.moreblock.configured_pack.mismatch.different": "These packs differ from the server:",
+  "disconnect.moreblock.configured_pack.mismatch.footer": "Please sync the imported block packs between client and server, then try again."
+}
