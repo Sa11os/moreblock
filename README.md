@@ -19,7 +19,7 @@ MoreBlock 是一个面向 Minecraft 1.20.1 Forge 的自定义方块导入模组�
 
 - Minecraft `1.20.1`
 - Forge `47.4.20` 或兼容的 `47.x`
-- GeckoLib `4.4.2+`
+- 前置模组：GeckoLib `4.4.2+`
 
 ## 安装
 
@@ -90,6 +90,8 @@ config/moreblock/block/
 
 ## Blockbench 插件
 
+制作模型时需要在 Blockbench 中安装 GeckoLib 插件，并将项目转换为 GeckoLib 模型后再导出 `geo.json`。MoreBlock 读取的是 GeckoLib 的 `*.geo.json` 模型文件，普通方块模型或未转换的 Blockbench 项目不能直接作为导入模型使用。
+
 仓库中包含配套的 Blockbench 工具脚本，位于：
 
 ```text
@@ -100,7 +102,7 @@ tools/blockbench/moreblock_blockbench_tools.js
 
 - 生成 MoreBlock 配置 JSON
 - 根据当前模型生成 MoreBlock 可识别的 hitbox 骨骼
-- 推荐使用高质量和Greedy 模式
+- 推荐使用高质量和 Greedy 模式
 
 ## 适用场景
 
