@@ -1,19 +1,17 @@
-name: Build Mod
+name: Release Mod
 
 on:
   push:
-    branches:
-      - main
-      - master
-  pull_request:
+    tags:
+      - "v*"
   workflow_dispatch:
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -35,8 +33,7 @@ jobs:
       - name: Build
         run: ./gradlew build --stacktrace --info
 
-      - name: Upload jar artifact
-        uses: actions/upload-artifact@v4
+      - name: Create release and upload jar
+        uses: softprops/action-gh-release@v2
         with:
-          name: moreblock-jar
-          path: build/libs/*.jar
+          files: build/libs/*.jar
