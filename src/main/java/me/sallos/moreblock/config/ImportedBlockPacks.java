@@ -54,8 +54,12 @@ public final class ImportedBlockPacks {
     private static final String DYNAMIC_ANIMATION_NAME = "config_block_idle.animation.json";
     private static final Path CONFIG_NAMESPACE_ROOT = FMLPaths.CONFIGDIR.get().resolve(Moreblock.MODID);
     private static final Path CONFIG_ROOT = CONFIG_NAMESPACE_ROOT.resolve("block");
+    private static final String EXAMPLE_DIRECTORY_NAME = "example";
     private static final Path CONFIG_PLACEHOLDER_FILE = CONFIG_ROOT.resolve(".keep");
     private static final Path CONFIG_GUIDE_FILE = CONFIG_ROOT.resolve("README.txt");
+    private static final Path EXAMPLE_CONFIG_DIR = CONFIG_ROOT.resolve(EXAMPLE_DIRECTORY_NAME);
+    private static final Path EXAMPLE_CONFIG_FILE = EXAMPLE_CONFIG_DIR.resolve("example.json");
+    private static final Path EXAMPLE_MARKDOWN_FILE = EXAMPLE_CONFIG_DIR.resolve("example.md");
     private static final Path GENERATED_PACK_ROOT = FMLPaths.CONFIGDIR.get().resolve(Moreblock.MODID).resolve(".generated_block_pack");
     private static final Path GENERATED_SOURCE_ROOT = GENERATED_PACK_ROOT.resolve("_sources");
 
@@ -215,6 +219,8 @@ public final class ImportedBlockPacks {
             Files.writeString(CONFIG_PLACEHOLDER_FILE, "", StandardCharsets.UTF_8);
         }
 
+        writeExampleConfig();
+
         if (Files.notExists(CONFIG_GUIDE_FILE)) {
             Files.writeString(CONFIG_GUIDE_FILE, """
                     MoreBlock 导入方块目录
@@ -239,8 +245,90 @@ public final class ImportedBlockPacks {
                     - 模组启动时会自动创建 `config/moreblock/block` 目录
                     - `id` 会作为方块注册路径和语言键后缀使用
                     - 客户端启动时会读取目录并挂载运行时资源
-                    - README 和 .keep 只是说明文件，会被自动忽略
+                    - README、.keep 和 example 文件夹只是说明内容，会被自动忽略
                     """, StandardCharsets.UTF_8);
+        }
+    }
+
+    private static void writeExampleConfig() throws IOException {
+        Files.createDirectories(EXAMPLE_CONFIG_DIR);
+        writeJson(EXAMPLE_CONFIG_FILE, buildExampleConfigJson());
+        Files.writeString(EXAMPLE_MARKDOWN_FILE, buildExampleMarkdownText(), StandardCharsets.UTF_8);
+    }
+
+    private static JsonObject buildExampleConfigJson() {
+        JsonObject root = new JsonObject();
+        for (ExampleConfigParameter parameter : exampleConfigParameters(resolveExampleConfigLanguage())) {
+            parameter.apply(root);
+        }
+        return root;
+    }
+
+    private static String buildExampleMarkdownText() {
+        ExampleConfigLanguage language = resolveExampleConfigLanguage();
+        String lineSeparator = System.lineSeparator();
+        StringBuilder builder = new StringBuilder();
+        builder.append(language.markdownTitle()).append(lineSeparator).append(lineSeparator);
+        builder.append(language.mainComment()).append(lineSeparator).append(lineSeparator);
+        builder.append(language.markdownUsage()).append(lineSeparator).append(lineSeparator);
+        for (ExampleConfigParameter parameter : exampleConfigParameters(language)) {
+            builder.append("## `").append(parameter.key()).append("`").append(lineSeparator).append(lineSeparator);
+            builder.append(parameter.description()).append(lineSeparator).append(lineSeparator);
+            builder.append(language.markdownExamplePrefix()).append(" `").append(parameter.exampleText().replace(System.lineSeparator(), " ")).append("`").append(lineSeparator).append(lineSeparator);
+        }
+        return builder.toString();
+    }
+
+    private static List<ExampleConfigParameter> exampleConfigParameters(ExampleConfigLanguage language) {
+        JsonObject name = new JsonObject();
+        name.addProperty("zh_cn", "示例方块");
+        name.addProperty("en_us", "Example Block");
+
+        return List.of(
+                ExampleConfigParameter.of("id", "example_block", GSON.toJsonTree("example_block"), language.describeId()),
+                ExampleConfigParameter.of("name", "{ \"zh_cn\": \"示例方块\", \"en_us\": \"Example Block\" }", name, language.describeName()),
+                ExampleConfigParameter.of("geo", "example_block.geo.json", GSON.toJsonTree("example_block.geo.json"), language.describeGeo()),
+                ExampleConfigParameter.of("texture", "texture.png", GSON.toJsonTree("texture.png"), language.describeTexture()),
+                ExampleConfigParameter.of("display", "example_block-display.json", GSON.toJsonTree("example_block-display.json"), language.describeDisplay()),
+                ExampleConfigParameter.of("light_level", "15", GSON.toJsonTree(15), language.describeLightLevel())
+        );
+    }
+
+    private static ExampleConfigLanguage resolveExampleConfigLanguage() {
+        String languageCode = firstNonBlank(readLanguageCodeFromOptionsFile(), readLanguageCodeFromClientOptions());
+        if (languageCode != null && languageCode.toLowerCase(Locale.ROOT).startsWith("zh")) {
+            return ExampleConfigLanguage.zhCn();
+        }
+        return ExampleConfigLanguage.enUs();
+    }
+
+    private static String readLanguageCodeFromOptionsFile() {
+        Path optionsFile = FMLPaths.GAMEDIR.get().resolve("options.txt");
+        if (!Files.isRegularFile(optionsFile)) {
+            return null;
+        }
+
+        try (Stream<String> lines = Files.lines(optionsFile, StandardCharsets.UTF_8)) {
+            return lines
+                    .filter(line -> line.startsWith("lang:"))
+                    .map(line -> line.substring("lang:".length()).trim())
+                    .filter(ImportedBlockPacks::isPresent)
+                    .findFirst()
+                    .orElse(null);
+        } catch (IOException exception) {
+            Moreblock.LOGGER.warn("读取客户端语言配置失败: {}", optionsFile, exception);
+            return null;
+        }
+    }
+
+    private static String readLanguageCodeFromClientOptions() {
+        try {
+            Class<?> minecraftClass = Class.forName("net.minecraft.client.Minecraft");
+            Object minecraft = minecraftClass.getMethod("getInstance").invoke(null);
+            Object options = minecraftClass.getField("options").get(minecraft);
+            return (String) options.getClass().getField("languageCode").get(options);
+        } catch (Throwable ignored) {
+            return null;
         }
     }
 
@@ -267,7 +355,7 @@ public final class ImportedBlockPacks {
 
     private static void loadPackEntry(Path packEntry, String sourceZipName) {
         try {
-            if (isIgnoredArchivePath(packEntry)) {
+            if (isIgnoredArchivePath(packEntry) || isExampleConfigPath(packEntry)) {
                 return;
             }
             if (Files.isDirectory(packEntry)) {
@@ -501,7 +589,7 @@ public final class ImportedBlockPacks {
             List<Path> children;
             try (Stream<Path> stream = Files.list(current)) {
                 children = stream
-                        .filter(path -> !isIgnoredArchivePath(path))
+                        .filter(path -> !isIgnoredArchivePath(path) && !isExampleConfigPath(path))
                         .sorted(Comparator.comparing(path -> path.getFileName().toString(), String.CASE_INSENSITIVE_ORDER))
                         .toList();
             }
@@ -517,6 +605,11 @@ public final class ImportedBlockPacks {
         String fileName = path.getFileName().toString();
         return fileName.equalsIgnoreCase(".DS_Store")
                 || fileName.equalsIgnoreCase("__MACOSX");
+    }
+
+    private static boolean isExampleConfigPath(Path path) {
+        Path fileName = path.getFileName();
+        return fileName != null && fileName.toString().equalsIgnoreCase(EXAMPLE_DIRECTORY_NAME);
     }
 
     private static void extractZip(Path zipFile, Path extractRoot) throws IOException {
@@ -1007,6 +1100,59 @@ public final class ImportedBlockPacks {
     private record GeoInspection(String hitboxBoneName) {
     }
 
+    private record ExampleConfigLanguage(
+            String mainComment,
+            String markdownTitle,
+            String markdownUsage,
+            String markdownExamplePrefix,
+            String describeId,
+            String describeName,
+            String describeGeo,
+            String describeTexture,
+            String describeDisplay,
+            String describeLightLevel
+    ) {
+        private static ExampleConfigLanguage zhCn() {
+            return new ExampleConfigLanguage(
+                    "这份文件由 MoreBlock 自动生成，用来说明 example.json 里每个参数的用法。example 文件夹只作参考，不会被加载为自定义方块。",
+                    "# MoreBlock 示例配置说明",
+                    "旁边的 example.json 是标准 JSON，可以直接复制成新的方块配置再修改。",
+                    "示例：",
+                    "方块 ID，会作为注册名的一部分使用。建议只使用小写英文、数字和下划线。",
+                    "方块显示名称。zh_cn 是中文名，en_us 是英文名。",
+                    "模型文件名，需要对应同一方块文件夹内的 .geo.json 文件。",
+                    "贴图文件名，通常使用 texture.png。",
+                    "物品展示参数文件名，可选。不填写时会使用内置默认展示。",
+                    "方块亮度，范围 0 到 15。0 表示不发光，15 表示最高亮度。"
+            );
+        }
+
+        private static ExampleConfigLanguage enUs() {
+            return new ExampleConfigLanguage(
+                    "This file is generated by MoreBlock to explain every parameter in example.json. The example folder is only a reference and is never loaded as a custom block.",
+                    "# MoreBlock example config guide",
+                    "The nearby example.json is valid JSON. Copy it into a new block folder and edit it when making a block.",
+                    "Example:",
+                    "Block id. It becomes part of the registry name. Lowercase letters, numbers, and underscores are recommended.",
+                    "Block display names. zh_cn is the Chinese name, and en_us is the English name.",
+                    "Model file name. It should point to the .geo.json file in the same block folder.",
+                    "Texture file name. texture.png is the usual default.",
+                    "Item display transform file name. Optional. The built-in default display is used when omitted.",
+                    "Block light level from 0 to 15. 0 means no light, and 15 is the brightest."
+            );
+        }
+    }
+
+    private record ExampleConfigParameter(String key, String exampleText, JsonElement value, String description) {
+        private void apply(JsonObject root) {
+            root.add(key, value.deepCopy());
+        }
+
+        private static ExampleConfigParameter of(String key, String exampleText, JsonElement value, String description) {
+            return new ExampleConfigParameter(key, exampleText, value, description);
+        }
+    }
+
     private record PackConfig(
             Path configSourceFile,
             String id,
@@ -1033,3 +1179,4 @@ public final class ImportedBlockPacks {
         }
     }
 }
+
