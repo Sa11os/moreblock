@@ -55,12 +55,12 @@ public class Moreblock {
     private static final Collection<AbstractMap.SimpleEntry<Runnable, Integer>> WORK_QUEUE = new ConcurrentLinkedQueue<>();
     private static int messageId = 0;
 
-    public Moreblock() {
+    public Moreblock(FMLJavaModLoadingContext context) {
         ImportedBlockPacks.bootstrap();
         GeckoLib.initialize();
         MinecraftForge.EVENT_BUS.register(this);
 
-        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+        IEventBus modEventBus = context.getModEventBus();
         ImportedBlocks.register(modEventBus);
         ImportedBlockEntities.register(modEventBus);
         MoreBlockEntityTypes.register(modEventBus);
