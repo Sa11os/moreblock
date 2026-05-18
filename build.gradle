@@ -205,14 +205,18 @@ tasks.named('jar', Jar).configure {
     finalizedBy 'reobfJar'
 }
 
-def modCopyTarget = file('F:/Minecraft/test/versions/1.20.1-Forge_47.4.16/mods')
+def modCopyTargetPath = 'F:/Minecraft/test/versions/1.20.1-Forge_47.4.16/mods'
+def modCopyTarget = providers.provider {
+    org.gradle.internal.os.OperatingSystem.current().isWindows() ? file(modCopyTargetPath) : null
+}
 
 tasks.register('copyModToTestClient') {
     def jarProvider = layout.buildDirectory.file("libs/${base.archivesName.get()}-${project.version}.jar")
 
     onlyIf {
-        if (!modCopyTarget.exists() || !modCopyTarget.isDirectory()) {
-            println "Skipping mod jar copy because target mods directory does not exist: ${modCopyTarget}"
+        def target = modCopyTarget.getOrNull()
+        if (target == null || !target.exists() || !target.isDirectory()) {
+            println "Skipping mod jar copy because target mods directory does not exist: ${modCopyTargetPath}"
             return false
         }
         return true
@@ -220,15 +224,16 @@ tasks.register('copyModToTestClient') {
 
     doLast {
         def jarFile = jarProvider.get().asFile
+        def target = modCopyTarget.get()
         if (!jarFile.exists()) {
             println "Skipping mod jar copy because built jar does not exist: ${jarFile}"
             return
         }
 
-        println "Copying mod jar to target mods directory: ${modCopyTarget}"
+        println "Copying mod jar to target mods directory: ${target}"
         copy {
             from jarFile
-            into modCopyTarget
+            into target
         }
     }
 }
