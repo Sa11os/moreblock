@@ -2,11 +2,16 @@ package me.sallos.moreblock.block;
 
 import me.sallos.moreblock.block.entity.ImportedBlockEntity;
 import me.sallos.moreblock.config.ImportedBlockPacks;
+import me.sallos.moreblock.entity.SeatEntity;
 import me.sallos.moreblock.util.HorizontalFacingHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -17,6 +22,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
@@ -75,6 +82,31 @@ public class ImportedBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(@Nonnull BlockPos pos, @Nonnull BlockState state) {
         return new ImportedBlockEntity(pos, state);
+    }
+
+    @Nonnull
+    @Override
+    public InteractionResult use(@Nonnull BlockState state, @Nonnull Level level, @Nonnull BlockPos pos, @Nonnull Player player, @Nonnull InteractionHand hand, @Nonnull BlockHitResult hit) {
+        ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(definitionKey);
+        if (definition == null || !definition.supportsSitting()) {
+            return InteractionResult.PASS;
+        }
+        if (level.isClientSide) {
+            return InteractionResult.SUCCESS;
+        }
+        if (player.isPassenger() || hasSeat(level, pos)) {
+            return InteractionResult.CONSUME;
+        }
+
+        SeatEntity seat = new SeatEntity(level, pos, definition.seatHeight());
+        level.addFreshEntity(seat);
+        player.startRiding(seat);
+        return InteractionResult.CONSUME;
+    }
+
+    private boolean hasSeat(Level level, BlockPos pos) {
+        AABB bounds = new AABB(pos).inflate(0.1d, 1.0d, 0.1d);
+        return !level.getEntitiesOfClass(SeatEntity.class, bounds, seat -> seat.isAlive() && !seat.getPassengers().isEmpty()).isEmpty();
     }
 
     @Override

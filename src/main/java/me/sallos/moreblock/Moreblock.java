@@ -4,6 +4,7 @@ import me.sallos.moreblock.config.ImportedBlockPacks;
 import me.sallos.moreblock.init.ImportedBlockEntities;
 import me.sallos.moreblock.init.ImportedBlocks;
 import me.sallos.moreblock.init.MoreBlockCreativeTabs;
+import me.sallos.moreblock.init.MoreBlockEntityTypes;
 import me.sallos.moreblock.init.ImportedItems;
 import me.sallos.moreblock.network.MoreBlockNetworkMessages;
 import net.minecraft.network.FriendlyByteBuf;
@@ -62,6 +63,7 @@ public class Moreblock {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         ImportedBlocks.register(modEventBus);
         ImportedBlockEntities.register(modEventBus);
+        MoreBlockEntityTypes.register(modEventBus);
         ImportedItems.register(modEventBus);
         MoreBlockCreativeTabs.register(modEventBus);
         MoreBlockNetworkMessages.register();

@@ -290,7 +290,9 @@ public final class ImportedBlockPacks {
                 ExampleConfigParameter.of("geo", "example_block.geo.json", GSON.toJsonTree("example_block.geo.json"), language.describeGeo()),
                 ExampleConfigParameter.of("texture", "texture.png", GSON.toJsonTree("texture.png"), language.describeTexture()),
                 ExampleConfigParameter.of("display", "example_block-display.json", GSON.toJsonTree("example_block-display.json"), language.describeDisplay()),
-                ExampleConfigParameter.of("light_level", "15", GSON.toJsonTree(15), language.describeLightLevel())
+                ExampleConfigParameter.of("light_level", "15", GSON.toJsonTree(15), language.describeLightLevel()),
+                ExampleConfigParameter.of("supports_sitting", "false", GSON.toJsonTree(false), language.describeSupportsSitting()),
+                ExampleConfigParameter.of("seat_height", "0.5", GSON.toJsonTree(0.5d), language.describeSeatHeight())
         );
     }
 
@@ -435,7 +437,9 @@ public final class ImportedBlockPacks {
                     displaySource,
                     textureSource,
                     shapes,
-                    resolveLightLevel(packConfig.lightLevel())
+                    resolveLightLevel(packConfig.lightLevel()),
+                    resolveSupportsSitting(packConfig.supportsSitting()),
+                    resolveSeatHeight(packConfig.seatHeight())
             );
 
             DEFINITIONS.add(definition);
@@ -482,7 +486,9 @@ public final class ImportedBlockPacks {
                     firstNonBlank(getOptionalString(root, "geo", "geo_file", "model", "model_file"), null),
                     firstNonBlank(getOptionalString(root, "texture", "texture_file"), "texture.png"),
                     firstNonBlank(getOptionalString(root, "display", "display_file", "item_display", "item_display_file"), null),
-                    getOptionalInt(root, "light_level", "lightLevel", "emission", "light")
+                    getOptionalInt(root, "light_level", "lightLevel", "emission", "light"),
+                    getOptionalBoolean(root, "supports_sitting", "supportsSitting", "sittable", "can_sit", "canSit"),
+                    getOptionalDouble(root, "seat_height", "seatHeight", "sitting_height", "sittingHeight")
             );
         }
     }
@@ -993,6 +999,38 @@ public final class ImportedBlockPacks {
         return null;
     }
 
+    private static Double getOptionalDouble(JsonObject root, String... keys) {
+        if (root == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (!root.has(key) || root.get(key).isJsonNull()) {
+                continue;
+            }
+            try {
+                return root.get(key).getAsDouble();
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Boolean getOptionalBoolean(JsonObject root, String... keys) {
+        if (root == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (!root.has(key) || root.get(key).isJsonNull()) {
+                continue;
+            }
+            try {
+                return root.get(key).getAsBoolean();
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
     private static String firstNonBlank(String... values) {
         for (String value : values) {
             if (isPresent(value)) {
@@ -1011,6 +1049,17 @@ public final class ImportedBlockPacks {
             return Math.max(0, Math.min(15, configuredLightLevel));
         }
         return 0;
+    }
+
+    private static boolean resolveSupportsSitting(Boolean configuredSupportsSitting) {
+        return configuredSupportsSitting != null && configuredSupportsSitting;
+    }
+
+    private static double resolveSeatHeight(Double configuredSeatHeight) {
+        if (configuredSeatHeight != null) {
+            return Math.max(0.0d, Math.min(2.0d, configuredSeatHeight));
+        }
+        return 0.5d;
     }
 
     private static List<PackManifestEntry> buildPackManifest() {
@@ -1066,7 +1115,9 @@ public final class ImportedBlockPacks {
             Path displaySourceFile,
             Path textureSourceFile,
             GeoHitboxSystem.HorizontalShapes horizontalShapes,
-            int lightLevel
+            int lightLevel,
+            boolean supportsSitting,
+            double seatHeight
     ) {
         public String displayName() {
             return firstNonBlank(zhCnName, enUsName, sourceFolderName, registryName);
@@ -1110,7 +1161,9 @@ public final class ImportedBlockPacks {
             String describeGeo,
             String describeTexture,
             String describeDisplay,
-            String describeLightLevel
+            String describeLightLevel,
+            String describeSupportsSitting,
+            String describeSeatHeight
     ) {
         private static ExampleConfigLanguage zhCn() {
             return new ExampleConfigLanguage(
@@ -1123,7 +1176,9 @@ public final class ImportedBlockPacks {
                     "模型文件名，需要对应同一方块文件夹内的 .geo.json 文件。",
                     "贴图文件名，通常使用 texture.png。",
                     "物品展示参数文件名，可选。不填写时会使用内置默认展示。",
-                    "方块亮度，范围 0 到 15。0 表示不发光，15 表示最高亮度。"
+                    "方块亮度，范围 0 到 15。0 表示不发光，15 表示最高亮度。",
+                    "是否允许玩家右键坐下。默认 false，设为 true 后玩家可以右键坐在这个方块上。",
+                    "玩家坐下时的高度。默认 0.5，可以按模型高度调整。"
             );
         }
 
@@ -1138,7 +1193,9 @@ public final class ImportedBlockPacks {
                     "Model file name. It should point to the .geo.json file in the same block folder.",
                     "Texture file name. texture.png is the usual default.",
                     "Item display transform file name. Optional. The built-in default display is used when omitted.",
-                    "Block light level from 0 to 15. 0 means no light, and 15 is the brightest."
+                    "Block light level from 0 to 15. 0 means no light, and 15 is the brightest.",
+                    "Whether players can right-click this block to sit on it. The default is false.",
+                    "Player sitting height. The default is 0.5, and you can adjust it to fit the model."
             );
         }
     }
@@ -1161,10 +1218,12 @@ public final class ImportedBlockPacks {
             String geoFile,
             String textureFile,
             String displayFile,
-            Integer lightLevel
+            Integer lightLevel,
+            Boolean supportsSitting,
+            Double seatHeight
     ) {
         private static PackConfig legacy() {
-            return new PackConfig(null, null, null, null, null, "texture.png", null, null);
+            return new PackConfig(null, null, null, null, null, "texture.png", null, null, null, null);
         }
     }
 

@@ -2,8 +2,10 @@ package me.sallos.moreblock.client.event;
 
 import me.sallos.moreblock.Moreblock;
 import me.sallos.moreblock.client.renderer.ImportedBlockRenderer;
+import me.sallos.moreblock.client.renderer.SeatEntityRenderer;
 import me.sallos.moreblock.config.ImportedBlockPacks;
 import me.sallos.moreblock.init.ImportedBlockEntities;
+import me.sallos.moreblock.init.MoreBlockEntityTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.PathPackResources;
@@ -15,6 +17,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
+import net.minecraft.client.renderer.entity.EntityRenderers;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,6 +31,7 @@ public final class MoreBlockClientModEvents {
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
+            EntityRenderers.register(MoreBlockEntityTypes.SEAT.get(), SeatEntityRenderer::new);
             if (ImportedBlockPacks.hasDefinitions()) {
                 BlockEntityRenderers.register(Objects.requireNonNull(ImportedBlockEntities.getImportedBlockType()), ImportedBlockRenderer::new);
             }
