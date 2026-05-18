@@ -100,6 +100,7 @@ tools/blockbench/moreblock_blockbench_tools.js
 
 - 生成 MoreBlock 配置 JSON
 - 根据当前模型生成 MoreBlock 可识别的 hitbox 骨骼
+- 推荐使用高质量和Greedy 模式
 
 ## 适用场景
 
