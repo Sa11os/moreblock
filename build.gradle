@@ -205,41 +205,49 @@ tasks.named('jar', Jar).configure {
     finalizedBy 'reobfJar'
 }
 
-def modCopyTargetPath = 'F:/Minecraft/test/versions/1.20.1-Forge_47.4.16/mods'
-def modCopyTarget = providers.provider {
-    org.gradle.internal.os.OperatingSystem.current().isWindows() ? file(modCopyTargetPath) : null
+def modCopyTargets = [
+        testClient   : 'F:/Minecraft/test/versions/1.20.1-Forge_47.4.16/mods',
+        elementClient: 'F:/Minecraft/要素/versions/1.20.1-Forge_47.4.13/mods'
+]
+
+def registerModCopyTask = { String taskName, String targetPath ->
+    tasks.register(taskName) {
+        def jarProvider = layout.buildDirectory.file("libs/${base.archivesName.get()}-${project.version}.jar")
+        def targetProvider = providers.provider {
+            org.gradle.internal.os.OperatingSystem.current().isWindows() ? file(targetPath) : null
+        }
+
+        onlyIf {
+            def target = targetProvider.getOrNull()
+            if (target == null || !target.exists() || !target.isDirectory()) {
+                println "Skipping mod jar copy because target mods directory does not exist: ${targetPath}"
+                return false
+            }
+            return true
+        }
+
+        doLast {
+            def jarFile = jarProvider.get().asFile
+            def target = targetProvider.get()
+            if (!jarFile.exists()) {
+                println "Skipping mod jar copy because built jar does not exist: ${jarFile}"
+                return
+            }
+
+            println "Copying mod jar to target mods directory: ${target}"
+            copy {
+                from jarFile
+                into target
+            }
+        }
+    }
 }
 
-tasks.register('copyModToTestClient') {
-    def jarProvider = layout.buildDirectory.file("libs/${base.archivesName.get()}-${project.version}.jar")
-
-    onlyIf {
-        def target = modCopyTarget.getOrNull()
-        if (target == null || !target.exists() || !target.isDirectory()) {
-            println "Skipping mod jar copy because target mods directory does not exist: ${modCopyTargetPath}"
-            return false
-        }
-        return true
-    }
-
-    doLast {
-        def jarFile = jarProvider.get().asFile
-        def target = modCopyTarget.get()
-        if (!jarFile.exists()) {
-            println "Skipping mod jar copy because built jar does not exist: ${jarFile}"
-            return
-        }
-
-        println "Copying mod jar to target mods directory: ${target}"
-        copy {
-            from jarFile
-            into target
-        }
-    }
-}
+def copyModToTestClient = registerModCopyTask('copyModToTestClient', modCopyTargets.testClient)
+def copyModToElementClient = registerModCopyTask('copyModToElementClient', modCopyTargets.elementClient)
 
 tasks.named('build') {
-    finalizedBy(tasks.named('copyModToTestClient'))
+    finalizedBy(copyModToTestClient, copyModToElementClient)
 }
 
 tasks.withType(JavaCompile).configureEach {
