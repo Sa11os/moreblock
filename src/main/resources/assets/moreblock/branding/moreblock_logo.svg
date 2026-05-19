@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" fill="none" height="1000px" version="1.1" viewBox="0 0 1000 1000" width="1000px">
+  <defs/>
+  <polygon fill="#1B2A3A" points="320,340 680,340 760,260 400,260" stroke="#2DE2E6" stroke-linecap="butt" stroke-linejoin="bevel" stroke-miterlimit="2" stroke-width="18"/>
+  <polygon fill="#0B1118" points="680,340 760,260 760,620 680,700" stroke="#2DE2E6" stroke-linecap="butt" stroke-linejoin="bevel" stroke-miterlimit="2" stroke-width="18"/>
+  <rect fill="#121A24" height="360" rx="0" ry="0" stroke="#2DE2E6" stroke-linecap="butt" stroke-linejoin="bevel" stroke-miterlimit="2" stroke-width="18" width="360" x="320" y="340"/>
+  <g fill="#EAF6FF">
+    <rect height="22" rx="0" ry="0" width="22" x="349" y="425"/>
+    <rect height="22" rx="0" ry="0" width="22" x="461" y="425"/>
+    <rect height="22" rx="0" ry="0" width="22" x="349" y="453"/>
+    <rect height="22" rx="0" ry="0" width="22" x="377" y="453"/>
+    <rect height="22" rx="0" ry="0" width="22" x="433" y="453"/>
+    <rect height="22" rx="0" ry="0" width="22" x="461" y="453"/>
+    <rect height="22" rx="0" ry="0" width="22" x="349" y="481"/>
+    <rect height="22" rx="0" ry="0" width="22" x="405" y="481"/>
+    <rect height="22" rx="0" ry="0" width="22" x="461" y="481"/>
+    <rect height="22" rx="0" ry="0" width="22" x="349" y="509"/>
+    <rect height="22" rx="0" ry="0" width="22" x="461" y="509"/>
+    <rect height="22" rx="0" ry="0" width="22" x="349" y="537"/>
+    <rect height="22" rx="0" ry="0" width="22" x="461" y="537"/>
+    <rect height="22" rx="0" ry="0" width="22" x="349" y="565"/>
+    <rect height="22" rx="0" ry="0" width="22" x="461" y="565"/>
+    <rect height="22" rx="0" ry="0" width="22" x="517" y="425"/>
+    <rect height="22" rx="0" ry="0" width="22" x="545" y="425"/>
+    <rect height="22" rx="0" ry="0" width="22" x="573" y="425"/>
+    <rect height="22" rx="0" ry="0" width="22" x="601" y="425"/>
+    <rect height="22" rx="0" ry="0" width="22" x="517" y="453"/>
+    <rect height="22" rx="0" ry="0" width="22" x="629" y="453"/>
+    <rect height="22" rx="0" ry="0" width="22" x="517" y="481"/>
+    <rect height="22" rx="0" ry="0" width="22" x="545" y="481"/>
+    <rect height="22" rx="0" ry="0" width="22" x="573" y="481"/>
+    <rect height="22" rx="0" ry="0" width="22" x="601" y="481"/>
+    <rect height="22" rx="0" ry="0" width="22" x="517" y="509"/>
+    <rect height="22" rx="0" ry="0" width="22" x="629" y="509"/>
+    <rect height="22" rx="0" ry="0" width="22" x="517" y="537"/>
+    <rect height="22" rx="0" ry="0" width="22" x="629" y="537"/>
+    <rect height="22" rx="0" ry="0" width="22" x="517" y="565"/>
+    <rect height="22" rx="0" ry="0" width="22" x="545" y="565"/>
+    <rect height="22" rx="0" ry="0" width="22" x="573" y="565"/>
+    <rect height="22" rx="0" ry="0" width="22" x="601" y="565"/>
+  </g>
+</svg>
