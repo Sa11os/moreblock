@@ -1,5 +1,6 @@
 package me.sallos.moreblock.block;
 
+import me.sallos.moreblock.Moreblock;
 import me.sallos.moreblock.block.entity.ImportedBlockEntity;
 import me.sallos.moreblock.config.ImportedBlockPacks;
 import me.sallos.moreblock.entity.SeatEntity;
@@ -8,10 +9,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -24,10 +29,12 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.Nonnull;
+import java.util.Optional;
 
 @SuppressWarnings("null")
 public class ImportedBlock extends BaseEntityBlock {
@@ -88,11 +95,14 @@ public class ImportedBlock extends BaseEntityBlock {
     @Override
     public InteractionResult use(@Nonnull BlockState state, @Nonnull Level level, @Nonnull BlockPos pos, @Nonnull Player player, @Nonnull InteractionHand hand, @Nonnull BlockHitResult hit) {
         ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(definitionKey);
-        if (definition == null || !definition.supportsSitting()) {
+        if (definition == null || (!definition.supportsSitting() && !definition.supportsLying())) {
             return InteractionResult.PASS;
         }
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
+        }
+        if (definition.supportsLying()) {
+            return useAsBed(state, level, pos, player, definition);
         }
         if (player.isPassenger() || hasSeat(level, pos)) {
             return InteractionResult.CONSUME;
@@ -102,6 +112,67 @@ public class ImportedBlock extends BaseEntityBlock {
         level.addFreshEntity(seat);
         player.startRiding(seat);
         return InteractionResult.CONSUME;
+    }
+
+    private InteractionResult useAsBed(BlockState state, Level level, BlockPos pos, Player player, ImportedBlockPacks.Definition definition) {
+        if (player.isPassenger() || hasSeat(level, pos)) {
+            Moreblock.LOGGER.info("导入方块床交互被占用: block={}, pos={}, passenger={}, occupied={}", definition.registryName(), pos, player.isPassenger(), hasSeat(level, pos));
+            return InteractionResult.CONSUME;
+        }
+        Moreblock.LOGGER.info("导入方块床开始尝试睡眠: block={}, pos={}, player={}, dayTime={}, dimension={}", definition.registryName(), pos, player.getGameProfile().getName(), level.getDayTime(), level.dimension().location());
+        var sleepResult = player.startSleepInBed(pos);
+        if (sleepResult.left().isPresent()) {
+            Player.BedSleepingProblem problem = sleepResult.left().get();
+            Moreblock.LOGGER.info("导入方块床原版睡眠返回问题: block={}, pos={}, player={}, problem={}", definition.registryName(), pos, player.getGameProfile().getName(), problem);
+            if (problem == Player.BedSleepingProblem.NOT_POSSIBLE_NOW) {
+                Moreblock.beginDaytimeLying(player, pos, definition);
+                Moreblock.LOGGER.info("导入方块床白天改用真正睡姿: block={}, pos={}, player={}, compensation={}",
+                        definition.registryName(),
+                        pos,
+                        player.getGameProfile().getName(),
+                        definition.lyingRotationCompensation());
+                return InteractionResult.CONSUME;
+            }
+            if (problem.getMessage() != null) {
+                player.displayClientMessage(problem.getMessage(), true);
+            }
+        } else {
+            Moreblock.LOGGER.info("导入方块床原版睡眠成功: block={}, pos={}, player={}", definition.registryName(), pos, player.getGameProfile().getName());
+        }
+        return InteractionResult.CONSUME;
+    }
+
+    @Override
+    public boolean isBed(BlockState state, BlockGetter level, BlockPos pos, @Nullable Entity player) {
+        ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(definitionKey);
+        return definition != null && definition.supportsLying();
+    }
+
+    @Override
+    public void setBedOccupied(BlockState state, Level level, BlockPos pos, LivingEntity sleeper, boolean occupied) {
+        ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(definitionKey);
+        if (definition != null && definition.supportsLying()) {
+            Moreblock.LOGGER.info("导入方块床占用状态变化: block={}, pos={}, sleeper={}, occupied={}", definition.registryName(), pos, sleeper.getName().getString(), occupied);
+        }
+    }
+
+    @Override
+    public Direction getBedDirection(BlockState state, LevelReader level, BlockPos pos) {
+        ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(definitionKey);
+        return resolveLyingFacing(state, definition);
+    }
+
+    @Override
+    public Optional<Vec3> getRespawnPosition(BlockState state, EntityType<?> type, LevelReader levelReader, BlockPos pos, float orientation, @Nullable LivingEntity entity) {
+        return Optional.empty();
+    }
+
+    private Direction resolveLyingFacing(BlockState state, @Nullable ImportedBlockPacks.Definition definition) {
+        Direction facing = state.getValue(FACING);
+        if (definition == null) {
+            return facing;
+        }
+        return HorizontalFacingHelper.rotateClockwise(facing, definition.lyingRotationCompensation());
     }
 
     private boolean hasSeat(Level level, BlockPos pos) {

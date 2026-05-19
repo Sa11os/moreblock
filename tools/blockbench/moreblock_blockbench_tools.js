@@ -15,6 +15,8 @@ let moreblock_generate_hitbox_action;
             lightLevel: '亮度',
             canSit: '可坐下',
             seatHeight: '坐下高度',
+            canLie: '可躺下',
+            lyingHeight: '躺下高度',
             exportType: 'MoreBlock 配置 JSON',
             exported: 'MoreBlock 配置已导出',
             pluginTitle: 'MoreBlock Blockbench 工具',
@@ -54,6 +56,8 @@ let moreblock_generate_hitbox_action;
             lightLevel: 'Light Level',
             canSit: 'Can Sit',
             seatHeight: 'Seat Height',
+            canLie: 'Can Lie',
+            lyingHeight: 'Lying Height',
             exportType: 'MoreBlock Config JSON',
             exported: 'MoreBlock config exported',
             pluginTitle: 'MoreBlock Blockbench Tools',
@@ -141,8 +145,10 @@ let moreblock_generate_hitbox_action;
             geo: String(form.geo || '').trim() || getDefaultGeoFile(),
             texture: String(form.texture || '').trim() || 'texture.png',
             light_level: Math.max(0, Math.min(15, Number.parseInt(form.light_level, 10) || 0)),
-            supports_sitting: Boolean(form.supports_sitting),
-            seat_height: Number.isFinite(Number.parseFloat(form.seat_height)) ? Number.parseFloat(form.seat_height) : 0.5
+            supports_sitting: Boolean(form.supports_sitting) && !Boolean(form.supports_lying),
+            seat_height: Number.isFinite(Number.parseFloat(form.seat_height)) ? Number.parseFloat(form.seat_height) : 0.5,
+            supports_lying: Boolean(form.supports_lying) && !Boolean(form.supports_sitting),
+            lying_height: Number.isFinite(Number.parseFloat(form.lying_height)) ? Number.parseFloat(form.lying_height) : 0.5
         };
 
         const display = String(form.display || '').trim();
@@ -837,6 +843,19 @@ let moreblock_generate_hitbox_action;
                 },
                 seat_height: {
                     label: text.seatHeight,
+                    type: 'number',
+                    value: 0.5,
+                    min: 0,
+                    max: 2,
+                    step: 0.05
+                },
+                supports_lying: {
+                    label: text.canLie,
+                    type: 'checkbox',
+                    value: false
+                },
+                lying_height: {
+                    label: text.lyingHeight,
                     type: 'number',
                     value: 0.5,
                     min: 0,

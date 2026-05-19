@@ -292,7 +292,10 @@ public final class ImportedBlockPacks {
                 ExampleConfigParameter.of("display", "example_block-display.json", GSON.toJsonTree("example_block-display.json"), language.describeDisplay()),
                 ExampleConfigParameter.of("light_level", "15", GSON.toJsonTree(15), language.describeLightLevel()),
                 ExampleConfigParameter.of("supports_sitting", "false", GSON.toJsonTree(false), language.describeSupportsSitting()),
-                ExampleConfigParameter.of("seat_height", "0.5", GSON.toJsonTree(0.5d), language.describeSeatHeight())
+                ExampleConfigParameter.of("seat_height", "0.5", GSON.toJsonTree(0.5d), language.describeSeatHeight()),
+                ExampleConfigParameter.of("supports_lying", "false", GSON.toJsonTree(false), language.describeSupportsLying()),
+                ExampleConfigParameter.of("lying_height", "0.5", GSON.toJsonTree(0.5d), language.describeLyingHeight()),
+                ExampleConfigParameter.of("lying_rotation_compensation", "0", GSON.toJsonTree(0), language.describeLyingRotationCompensation())
         );
     }
 
@@ -438,8 +441,11 @@ public final class ImportedBlockPacks {
                     textureSource,
                     shapes,
                     resolveLightLevel(packConfig.lightLevel()),
-                    resolveSupportsSitting(packConfig.supportsSitting()),
-                    resolveSeatHeight(packConfig.seatHeight())
+                    resolveSupportsSitting(packConfig.supportsSitting(), packConfig.supportsLying()),
+                    resolveSeatHeight(packConfig.seatHeight()),
+                    resolveSupportsLying(packConfig.supportsSitting(), packConfig.supportsLying()),
+                    resolveLyingHeight(packConfig.lyingHeight()),
+                    resolveLyingRotationCompensation(packConfig.lyingRotationCompensation())
             );
 
             DEFINITIONS.add(definition);
@@ -488,7 +494,10 @@ public final class ImportedBlockPacks {
                     firstNonBlank(getOptionalString(root, "display", "display_file", "item_display", "item_display_file"), null),
                     getOptionalInt(root, "light_level", "lightLevel", "emission", "light"),
                     getOptionalBoolean(root, "supports_sitting", "supportsSitting", "sittable", "can_sit", "canSit"),
-                    getOptionalDouble(root, "seat_height", "seatHeight", "sitting_height", "sittingHeight")
+                    getOptionalDouble(root, "seat_height", "seatHeight", "sitting_height", "sittingHeight"),
+                    getOptionalBoolean(root, "supports_lying", "supportsLying", "lieable", "can_lie", "canLie"),
+                    getOptionalDouble(root, "lying_height", "lyingHeight", "lie_height", "lieHeight"),
+                    getOptionalInt(root, "lying_rotation_compensation", "lyingRotationCompensation", "bed_rotation_compensation", "bedRotationCompensation")
             );
         }
     }
@@ -1051,8 +1060,8 @@ public final class ImportedBlockPacks {
         return 0;
     }
 
-    private static boolean resolveSupportsSitting(Boolean configuredSupportsSitting) {
-        return configuredSupportsSitting != null && configuredSupportsSitting;
+    private static boolean resolveSupportsSitting(Boolean configuredSupportsSitting, Boolean configuredSupportsLying) {
+        return configuredSupportsSitting != null && configuredSupportsSitting && !(configuredSupportsLying != null && configuredSupportsLying);
     }
 
     private static double resolveSeatHeight(Double configuredSeatHeight) {
@@ -1060,6 +1069,24 @@ public final class ImportedBlockPacks {
             return Math.max(0.0d, Math.min(2.0d, configuredSeatHeight));
         }
         return 0.5d;
+    }
+
+    private static boolean resolveSupportsLying(Boolean configuredSupportsSitting, Boolean configuredSupportsLying) {
+        return configuredSupportsLying != null && configuredSupportsLying && !(configuredSupportsSitting != null && configuredSupportsSitting);
+    }
+
+    private static double resolveLyingHeight(Double configuredLyingHeight) {
+        if (configuredLyingHeight != null) {
+            return Math.max(0.0d, Math.min(2.0d, configuredLyingHeight));
+        }
+        return 0.5d;
+    }
+
+    private static int resolveLyingRotationCompensation(Integer configuredLyingRotationCompensation) {
+        if (configuredLyingRotationCompensation != null) {
+            return Math.max(-3, Math.min(3, configuredLyingRotationCompensation));
+        }
+        return 0;
     }
 
     private static List<PackManifestEntry> buildPackManifest() {
@@ -1117,7 +1144,10 @@ public final class ImportedBlockPacks {
             GeoHitboxSystem.HorizontalShapes horizontalShapes,
             int lightLevel,
             boolean supportsSitting,
-            double seatHeight
+            double seatHeight,
+            boolean supportsLying,
+            double lyingHeight,
+            int lyingRotationCompensation
     ) {
         public String displayName() {
             return firstNonBlank(zhCnName, enUsName, sourceFolderName, registryName);
@@ -1163,7 +1193,10 @@ public final class ImportedBlockPacks {
             String describeDisplay,
             String describeLightLevel,
             String describeSupportsSitting,
-            String describeSeatHeight
+            String describeSeatHeight,
+            String describeSupportsLying,
+            String describeLyingHeight,
+            String describeLyingRotationCompensation
     ) {
         private static ExampleConfigLanguage zhCn() {
             return new ExampleConfigLanguage(
@@ -1177,8 +1210,11 @@ public final class ImportedBlockPacks {
                     "贴图文件名，通常使用 texture.png。",
                     "物品展示参数文件名，可选。不填写时会使用内置默认展示。",
                     "方块亮度，范围 0 到 15。0 表示不发光，15 表示最高亮度。",
-                    "是否允许玩家右键坐下。默认 false，设为 true 后玩家可以右键坐在这个方块上。",
-                    "玩家坐下时的高度。默认 0.5，可以按模型高度调整。"
+                    "是否允许玩家右键坐下。默认 false，设为 true 后玩家可以右键坐在这个方块上。和 supports_lying 互斥，同时开启时两者都不会生效。",
+                    "玩家坐下时的高度。默认 0.5，可以按模型高度调整。",
+                    "是否允许玩家右键躺下。默认 false，设为 true 后玩家可以像床一样在夜晚睡觉；白天也能躺下，但不会跳过时间或触发睡觉效果。和 supports_sitting 互斥，同时开启时两者都不会生效。",
+                    "玩家白天躺下时的显示高度。默认 0.5，可以按模型高度调整。",
+                    "玩家躺下方向的旋转补偿，单位是 90 度。默认 0。可用 -3 到 3 调整方向，例如 1 表示顺时针转 90 度，-1 表示逆时针转 90 度。"
             );
         }
 
@@ -1194,8 +1230,11 @@ public final class ImportedBlockPacks {
                     "Texture file name. texture.png is the usual default.",
                     "Item display transform file name. Optional. The built-in default display is used when omitted.",
                     "Block light level from 0 to 15. 0 means no light, and 15 is the brightest.",
-                    "Whether players can right-click this block to sit on it. The default is false.",
-                    "Player sitting height. The default is 0.5, and you can adjust it to fit the model."
+                    "Whether players can right-click this block to sit on it. The default is false. It is mutually exclusive with supports_lying. If both are enabled, neither takes effect.",
+                    "Player sitting height. The default is 0.5, and you can adjust it to fit the model.",
+                    "Whether players can right-click this block to lie down. The default is false. At night it behaves like a bed and starts normal sleeping; during daytime players can still lie down, but it does not skip time or trigger sleeping effects. It is mutually exclusive with supports_sitting. If both are enabled, neither takes effect.",
+                    "Player visual lying height during daytime lying. The default is 0.5, and you can adjust it to fit the model.",
+                    "Rotation compensation for the lying direction in 90-degree steps. The default is 0. Use values from -3 to 3, where 1 means 90 degrees clockwise and -1 means 90 degrees counterclockwise."
             );
         }
     }
@@ -1220,10 +1259,13 @@ public final class ImportedBlockPacks {
             String displayFile,
             Integer lightLevel,
             Boolean supportsSitting,
-            Double seatHeight
+            Double seatHeight,
+            Boolean supportsLying,
+            Double lyingHeight,
+            Integer lyingRotationCompensation
     ) {
         private static PackConfig legacy() {
-            return new PackConfig(null, null, null, null, null, "texture.png", null, null, null, null);
+            return new PackConfig(null, null, null, null, null, "texture.png", null, null, null, null, null, null, null);
         }
     }
 

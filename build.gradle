@@ -207,7 +207,7 @@ tasks.named('jar', Jar).configure {
 
 def modCopyTargets = [
         testClient   : 'F:/Minecraft/test/versions/1.20.1-Forge_47.4.16/mods',
-        elementClient: 'F:/Minecraft/要素/versions/1.20.1-Forge_47.4.13/mods'
+        elementClient: 'F:/Minecraft/yaosu/versions/1.20.1-Forge_47.4.13/mods'
 ]
 
 def registerModCopyTask = { String taskName, String targetPath ->
