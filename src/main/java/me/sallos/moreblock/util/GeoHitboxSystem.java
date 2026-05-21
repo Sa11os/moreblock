@@ -298,6 +298,10 @@ public final class GeoHitboxSystem {
     }
 
     public record HorizontalShapes(VoxelShape north, VoxelShape south, VoxelShape west, VoxelShape east) {
+        public static HorizontalShapes ofFullBlock() {
+            return new HorizontalShapes(Shapes.block(), Shapes.block(), Shapes.block(), Shapes.block());
+        }
+
         public VoxelShape get(Direction facing) {
             return switch (facing) {
                 case SOUTH -> south;

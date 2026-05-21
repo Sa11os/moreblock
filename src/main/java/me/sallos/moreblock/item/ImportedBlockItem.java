@@ -35,6 +35,9 @@ public class ImportedBlockItem extends BlockItem implements GeoItem {
         if (definition == null) {
             return super.getName(stack);
         }
+        if (definition.geoSourceFile() == null) {
+            return Component.literal(ImportedBlockPacks.resolveDisplayName(definition));
+        }
         return Component.translatable(definition.blockTranslationKey());
     }
 

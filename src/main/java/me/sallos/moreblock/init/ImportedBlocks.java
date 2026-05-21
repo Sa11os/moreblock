@@ -20,4 +20,8 @@ public final class ImportedBlocks {
     public static void register(IEventBus bus) {
         REGISTRY.register(bus);
     }
+
+    public static void registerApiBlocks() {
+        ImportedBlockPacks.registerBlocks(REGISTRY);
+    }
 }

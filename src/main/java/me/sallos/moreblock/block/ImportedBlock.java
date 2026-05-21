@@ -1,6 +1,8 @@
 package me.sallos.moreblock.block;
 
 import me.sallos.moreblock.Moreblock;
+import me.sallos.moreblock.api.event.MoreBlockEvents;
+import me.sallos.moreblock.api.event.MoreBlockInteractionResult;
 import me.sallos.moreblock.block.entity.ImportedBlockEntity;
 import me.sallos.moreblock.config.ImportedBlockPacks;
 import me.sallos.moreblock.entity.SeatEntity;
@@ -14,6 +16,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -51,10 +54,11 @@ public class ImportedBlock extends BaseEntityBlock {
     }
 
     private static BlockBehaviour.Properties createProperties(String definitionKey) {
-        return BlockBehaviour.Properties.of()
+        BlockBehaviour.Properties properties = BlockBehaviour.Properties.of()
                 .strength(3.5f, 6.0f)
-                .noOcclusion()
                 .lightLevel(state -> resolveLightLevel(definitionKey));
+        ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(definitionKey);
+        return definition != null && definition.translucent() ? properties.noOcclusion() : properties;
     }
 
     private static int resolveLightLevel(String definitionKey) {
@@ -81,6 +85,26 @@ public class ImportedBlock extends BaseEntityBlock {
     }
 
     @Override
+    public void setPlacedBy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nullable LivingEntity placer, @Nonnull ItemStack stack) {
+        ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(definitionKey);
+        if (definition != null) {
+            MoreBlockEvents.firePlaceBlock(definition, level, pos, state, placer, stack);
+        }
+        super.setPlacedBy(level, pos, state, placer, stack);
+    }
+
+    @Override
+    public void onRemove(@Nonnull BlockState state, @Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock())) {
+            ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(definitionKey);
+            if (definition != null) {
+                MoreBlockEvents.fireRemoveBlock(definition, level, pos, state, newState, movedByPiston);
+            }
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    @Override
     public RenderShape getRenderShape(@Nonnull BlockState state) {
         return RenderShape.ENTITYBLOCK_ANIMATED;
     }
@@ -95,9 +119,18 @@ public class ImportedBlock extends BaseEntityBlock {
     @Override
     public InteractionResult use(@Nonnull BlockState state, @Nonnull Level level, @Nonnull BlockPos pos, @Nonnull Player player, @Nonnull InteractionHand hand, @Nonnull BlockHitResult hit) {
         ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(definitionKey);
-        if (definition == null || (!definition.supportsSitting() && !definition.supportsLying())) {
+        if (definition == null) {
             return InteractionResult.PASS;
         }
+
+        MoreBlockInteractionResult apiResult = MoreBlockEvents.fireUseBlock(definition, state, level, pos, player, hand, hit);
+        if (apiResult != MoreBlockInteractionResult.PASS) {
+            return apiResult.toMinecraftResult();
+        }
+        if (!definition.supportsSitting() && !definition.supportsLying()) {
+            return InteractionResult.PASS;
+        }
+
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
         }
@@ -196,6 +229,6 @@ public class ImportedBlock extends BaseEntityBlock {
             return net.minecraft.world.phys.shapes.Shapes.block();
         }
         Direction compensatedFacing = HorizontalFacingHelper.rotateClockwise(state.getValue(FACING), ROTATION_COMPENSATION_STEPS);
-        return definition.horizontalShapes().get(compensatedFacing);
+        return ImportedBlockPacks.getHorizontalShapes(definition.registryName()).get(compensatedFacing);
     }
 }

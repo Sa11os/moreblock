@@ -48,6 +48,10 @@ public final class MoreBlockCreativeTabs {
         return ImportedBlockPacks.getDynamicItemRegistryObjects().stream()
                 .filter(RegistryObject::isPresent)
                 .map(RegistryObject::get)
+                .filter(item -> {
+                    ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(item);
+                    return definition != null && definition.showInMoreBlockTab();
+                })
                 .map(item -> (ItemLike) item)
                 .toList();
     }

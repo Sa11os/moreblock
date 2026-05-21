@@ -7,8 +7,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.sallos.moreblock.Moreblock;
+import me.sallos.moreblock.api.MoreBlockBlockDefinition;
+import me.sallos.moreblock.api.RegisteredMoreBlock;
 import me.sallos.moreblock.block.ImportedBlock;
 import me.sallos.moreblock.block.entity.ImportedBlockEntity;
+import me.sallos.moreblock.init.ImportedBlocks;
+import me.sallos.moreblock.init.ImportedItems;
 import me.sallos.moreblock.item.ImportedBlockItem;
 import me.sallos.moreblock.util.GeoHitboxSystem;
 import net.minecraft.resources.ResourceLocation;
@@ -40,6 +44,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.HexFormat;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -67,9 +72,11 @@ public final class ImportedBlockPacks {
     private static final Map<String, Definition> DEFINITIONS_BY_KEY = new LinkedHashMap<>();
     private static final Map<String, RegistryObject<Block>> DYNAMIC_BLOCKS = new LinkedHashMap<>();
     private static final Map<String, RegistryObject<Item>> DYNAMIC_ITEMS = new LinkedHashMap<>();
+    private static final Map<String, GeoHitboxSystem.HorizontalShapes> API_HORIZONTAL_SHAPES = new LinkedHashMap<>();
     private static final Map<Block, Definition> DEFINITIONS_BY_BLOCK = new IdentityHashMap<>();
     private static final Map<Item, Definition> DEFINITIONS_BY_ITEM = new IdentityHashMap<>();
     private static List<PackManifestEntry> PACK_MANIFEST = List.of();
+    private static boolean packManifestDirty = false;
 
     private static boolean bootstrapped = false;
 
@@ -85,12 +92,15 @@ public final class ImportedBlockPacks {
         DEFINITIONS_BY_KEY.clear();
         DEFINITIONS_BY_BLOCK.clear();
         DEFINITIONS_BY_ITEM.clear();
+        API_HORIZONTAL_SHAPES.clear();
         PACK_MANIFEST = List.of();
+        packManifestDirty = false;
 
         try {
             ensureConfigRoot();
             rebuildGeneratedPack();
             PACK_MANIFEST = buildPackManifest();
+            packManifestDirty = false;
         } catch (Exception exception) {
             Moreblock.LOGGER.error("初始化配置方块目录失败: {}", CONFIG_ROOT, exception);
         }
@@ -111,24 +121,94 @@ public final class ImportedBlockPacks {
 
     public static synchronized Map<String, RegistryObject<Block>> registerBlocks(DeferredRegister<Block> registry) {
         bootstrap();
-        if (!DYNAMIC_BLOCKS.isEmpty()) {
-            return Collections.unmodifiableMap(DYNAMIC_BLOCKS);
-        }
-
         for (Definition definition : DEFINITIONS) {
+            if (DYNAMIC_BLOCKS.containsKey(definition.registryName())) {
+                continue;
+            }
             RegistryObject<Block> registryObject = registry.register(definition.registryName(), () -> new ImportedBlock(definition.registryName()));
             DYNAMIC_BLOCKS.put(definition.registryName(), registryObject);
         }
         return Collections.unmodifiableMap(DYNAMIC_BLOCKS);
     }
 
+    public static synchronized RegisteredMoreBlock registerApiBlock(MoreBlockBlockDefinition definition) {
+        bootstrap();
+        String registryName = allocateRegistryName(definition.ownerModId() + '_' + definition.id());
+        GeoHitboxSystem.HorizontalShapes shapes = GeoHitboxSystem.HorizontalShapes.ofFullBlock();
+        Definition internalDefinition = new Definition(
+                definition.ownerModId(),
+                registryName,
+                firstNonBlank(definition.zhCnName(), definition.id()),
+                firstNonBlank(definition.enUsName(), definition.zhCnName(), definition.id()),
+                definition.id(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                shapes,
+                firstNonBlank(definition.hitboxBoneName(), "hitbox"),
+                definition.showInMoreBlockTab(),
+                definition.translucent(),
+                Math.max(0, Math.min(15, definition.lightLevel())),
+                definition.supportsSitting(),
+                definition.seatHeight(),
+                definition.supportsLying(),
+                definition.lyingHeight(),
+                definition.lyingRotationCompensation(),
+                definition.geo(),
+                definition.texture(),
+                definition.display(),
+                ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "models/item/" + registryName + ".json")
+        );
+        DEFINITIONS.add(internalDefinition);
+        DEFINITIONS_BY_KEY.put(registryName, internalDefinition);
+        packManifestDirty = true;
+        ImportedBlocks.registerApiBlocks();
+        ImportedItems.registerApiItems();
+        return new RegisteredMoreBlock(registryName);
+    }
+
+    public static synchronized GeoHitboxSystem.HorizontalShapes getHorizontalShapes(String registryName) {
+        bootstrap();
+        Definition definition = DEFINITIONS_BY_KEY.get(registryName);
+        if (definition == null) {
+            return GeoHitboxSystem.HorizontalShapes.ofFullBlock();
+        }
+        if (definition.geoSourceFile() != null) {
+            return definition.horizontalShapes();
+        }
+        GeoHitboxSystem.HorizontalShapes cachedShapes = API_HORIZONTAL_SHAPES.get(registryName);
+        if (cachedShapes != null) {
+            return cachedShapes;
+        }
+        GeoHitboxSystem.HorizontalShapes resolvedShapes = loadApiHorizontalShapes(definition);
+        API_HORIZONTAL_SHAPES.put(registryName, resolvedShapes);
+        return resolvedShapes;
+    }
+
+    public static synchronized Map<String, RegistryObject<Block>> getDynamicBlockRegistryObjects() {
+        bootstrap();
+        return Collections.unmodifiableMap(DYNAMIC_BLOCKS);
+    }
+
+    public static synchronized Optional<RegistryObject<Block>> getDynamicBlockRegistryObject(String registryName) {
+        bootstrap();
+        return Optional.ofNullable(DYNAMIC_BLOCKS.get(registryName));
+    }
+
+    public static synchronized Optional<RegistryObject<Item>> getDynamicItemRegistryObject(String registryName) {
+        bootstrap();
+        return Optional.ofNullable(DYNAMIC_ITEMS.get(registryName));
+    }
+
     public static synchronized Map<String, RegistryObject<Item>> registerItems(DeferredRegister<Item> registry) {
         bootstrap();
-        if (!DYNAMIC_ITEMS.isEmpty()) {
-            return Collections.unmodifiableMap(DYNAMIC_ITEMS);
-        }
-
         for (Definition definition : DEFINITIONS) {
+            if (DYNAMIC_ITEMS.containsKey(definition.registryName())) {
+                continue;
+            }
             RegistryObject<Block> blockRegistryObject = DYNAMIC_BLOCKS.get(definition.registryName());
             if (blockRegistryObject == null) {
                 continue;
@@ -201,7 +281,23 @@ public final class ImportedBlockPacks {
 
     public static synchronized List<PackManifestEntry> getPackManifest() {
         bootstrap();
+        if (packManifestDirty) {
+            PACK_MANIFEST = buildPackManifest();
+            packManifestDirty = false;
+        }
         return PACK_MANIFEST;
+    }
+
+    public static String resolveDisplayName(Definition definition) {
+        if (definition == null) {
+            return "";
+        }
+
+        String languageCode = firstNonBlank(readLanguageCodeFromOptionsFile(), readLanguageCodeFromClientOptions());
+        if (languageCode != null && languageCode.toLowerCase(Locale.ROOT).startsWith("zh")) {
+            return firstNonBlank(definition.zhCnName(), definition.enUsName(), definition.registryName());
+        }
+        return firstNonBlank(definition.enUsName(), definition.zhCnName(), definition.registryName());
     }
 
     public static Path getGeneratedPackRoot() {
@@ -429,6 +525,7 @@ public final class ImportedBlockPacks {
             );
             GeoHitboxSystem.HorizontalShapes shapes = GeoHitboxSystem.loadHorizontalShapes(geoSource, profile);
             Definition definition = new Definition(
+                    Moreblock.MODID,
                     registryName,
                     firstNonBlank(packConfig.zhCnName(), folderName),
                     firstNonBlank(packConfig.enUsName(), packConfig.zhCnName(), folderName),
@@ -440,12 +537,19 @@ public final class ImportedBlockPacks {
                     displaySource,
                     textureSource,
                     shapes,
+                    inspection.hitboxBoneName(),
+                    true,
+                    true,
                     resolveLightLevel(packConfig.lightLevel()),
                     resolveSupportsSitting(packConfig.supportsSitting(), packConfig.supportsLying()),
                     resolveSeatHeight(packConfig.seatHeight()),
                     resolveSupportsLying(packConfig.supportsSitting(), packConfig.supportsLying()),
                     resolveLyingHeight(packConfig.lyingHeight()),
-                    resolveLyingRotationCompensation(packConfig.lyingRotationCompensation())
+                    resolveLyingRotationCompensation(packConfig.lyingRotationCompensation()),
+                    ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "geo/block/" + registryName + ".geo.json"),
+                    ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "textures/block/" + registryName + "/texture.png"),
+                    displaySource == null ? null : ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "models/item/" + registryName + ".json"),
+                    ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "models/item/" + registryName + ".json")
             );
 
             DEFINITIONS.add(definition);
@@ -759,6 +863,26 @@ public final class ImportedBlockPacks {
             }
             return new GeoInspection(firstNonBlank(hitboxBoneName, firstBoneName));
         }
+    }
+
+    private static GeoHitboxSystem.HorizontalShapes loadApiHorizontalShapes(Definition definition) {
+        ResourceLocation geoLocation = definition.geoLocation();
+        if (geoLocation == null) {
+            return definition.horizontalShapes();
+        }
+        String geoPath = "assets/" + geoLocation.getNamespace() + "/" + geoLocation.getPath();
+        GeoHitboxSystem.Profile profile = new GeoHitboxSystem.Profile(
+                geoPath,
+                firstNonBlank(definition.hitboxBoneName(), "hitbox"),
+                true,
+                true,
+                false,
+                0.0d,
+                0.0d,
+                0.0d
+        );
+        Moreblock.LOGGER.info("延迟加载 API 方块 hitbox: {} -> {}", definition.registryName(), geoPath);
+        return GeoHitboxSystem.loadHorizontalShapes(profile);
     }
 
     private static void writeGeneratedAssets(Definition definition) throws IOException {
@@ -1131,6 +1255,7 @@ public final class ImportedBlockPacks {
     }
 
     public record Definition(
+            String ownerModId,
             String registryName,
             String zhCnName,
             String enUsName,
@@ -1142,35 +1267,42 @@ public final class ImportedBlockPacks {
             Path displaySourceFile,
             Path textureSourceFile,
             GeoHitboxSystem.HorizontalShapes horizontalShapes,
+            String hitboxBoneName,
+            boolean showInMoreBlockTab,
+            boolean translucent,
             int lightLevel,
             boolean supportsSitting,
             double seatHeight,
             boolean supportsLying,
             double lyingHeight,
-            int lyingRotationCompensation
+            int lyingRotationCompensation,
+            ResourceLocation geoLocation,
+            ResourceLocation textureLocation,
+            ResourceLocation displayLocation,
+            ResourceLocation itemModelLocation
     ) {
         public String displayName() {
             return firstNonBlank(zhCnName, enUsName, sourceFolderName, registryName);
         }
 
         public String blockTranslationKey() {
-            return "block." + Moreblock.MODID + "." + registryName;
+            return "block." + ownerModId + "." + registryName;
         }
 
         public String itemTranslationKey() {
-            return "item." + Moreblock.MODID + "." + registryName;
+            return "item." + ownerModId + "." + registryName;
         }
 
         public ResourceLocation modelLocation() {
-            return ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "geo/block/" + registryName + ".geo.json");
+            return geoLocation != null ? geoLocation : ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "geo/block/" + registryName + ".geo.json");
         }
 
         public ResourceLocation textureLocation() {
-            return ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "textures/block/" + registryName + "/texture.png");
+            return textureLocation != null ? textureLocation : ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "textures/block/" + registryName + "/texture.png");
         }
 
         public ResourceLocation itemModelLocation() {
-            return ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "models/item/" + registryName + ".json");
+            return itemModelLocation != null ? itemModelLocation : ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "models/item/" + registryName + ".json");
         }
 
         public ResourceLocation animationLocation() {
@@ -1280,4 +1412,3 @@ public final class ImportedBlockPacks {
         }
     }
 }
-
