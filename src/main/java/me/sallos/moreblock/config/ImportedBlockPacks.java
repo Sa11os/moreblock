@@ -281,10 +281,7 @@ public final class ImportedBlockPacks {
 
     public static synchronized List<PackManifestEntry> getPackManifest() {
         bootstrap();
-        if (packManifestDirty) {
-            PACK_MANIFEST = buildPackManifest();
-            packManifestDirty = false;
-        }
+        flushGeneratedPackIfDirty();
         return PACK_MANIFEST;
     }
 
@@ -302,7 +299,23 @@ public final class ImportedBlockPacks {
 
     public static Path getGeneratedPackRoot() {
         bootstrap();
+        flushGeneratedPackIfDirty();
         return GENERATED_PACK_ROOT;
+    }
+
+    private static void flushGeneratedPackIfDirty() {
+        if (!packManifestDirty) {
+            return;
+        }
+
+        try {
+            writeLanguageFiles();
+            writeApiGeneratedAssets();
+            PACK_MANIFEST = buildPackManifest();
+            packManifestDirty = false;
+        } catch (IOException exception) {
+            Moreblock.LOGGER.error("刷新 API 方块运行时资源失败", exception);
+        }
     }
 
     private static void ensureConfigRoot() throws IOException {
@@ -894,11 +907,25 @@ public final class ImportedBlockPacks {
         JsonObject itemModel = buildItemModelJson(definition.displaySourceFile());
         writeJson(assetsRoot.resolve("models").resolve("item").resolve(definition.registryName() + ".json"), itemModel);
 
+        writeGeneratedBlockModelAssets(definition, assetsRoot);
+    }
+
+    private static void writeApiGeneratedAssets() throws IOException {
+        Path assetsRoot = GENERATED_PACK_ROOT.resolve("assets").resolve(Moreblock.MODID);
+        for (Definition definition : DEFINITIONS) {
+            if (definition.geoSourceFile() != null) {
+                continue;
+            }
+            writeGeneratedBlockModelAssets(definition, assetsRoot);
+        }
+    }
+
+    private static void writeGeneratedBlockModelAssets(Definition definition, Path assetsRoot) throws IOException {
         JsonObject emptyBlockModel = new JsonObject();
         emptyBlockModel.addProperty("parent", "builtin/entity");
         JsonObject textures = new JsonObject();
         // 给方块模型补上 particle 贴图，避免破坏和敲击粒子回退成黑紫缺失材质
-        textures.addProperty("particle", Moreblock.MODID + ":block/" + definition.registryName() + "/texture");
+        textures.addProperty("particle", resolveParticleTexture(definition));
         emptyBlockModel.add("textures", textures);
         writeJson(assetsRoot.resolve("models").resolve("block").resolve(definition.registryName() + "_empty.json"), emptyBlockModel);
 
@@ -910,6 +937,22 @@ public final class ImportedBlockPacks {
         variants.add("facing=west", createModelVariant(definition.registryName()));
         blockStates.add("variants", variants);
         writeJson(assetsRoot.resolve("blockstates").resolve(definition.registryName() + ".json"), blockStates);
+    }
+
+    private static String resolveParticleTexture(Definition definition) {
+        ResourceLocation textureLocation = definition.textureLocation();
+        if (textureLocation == null) {
+            return Moreblock.MODID + ":block/" + definition.registryName() + "/texture";
+        }
+
+        String path = textureLocation.getPath();
+        if (path.startsWith("textures/")) {
+            path = path.substring("textures/".length());
+        }
+        if (path.endsWith(".png")) {
+            path = path.substring(0, path.length() - 4);
+        }
+        return textureLocation.getNamespace() + ":" + path;
     }
 
     private static void writeLanguageFiles() throws IOException {
