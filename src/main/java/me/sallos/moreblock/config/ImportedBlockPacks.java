@@ -24,6 +24,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
@@ -916,6 +917,7 @@ public final class ImportedBlockPacks {
             if (definition.geoSourceFile() != null) {
                 continue;
             }
+            copyApiTextureToGeneratedPack(definition, assetsRoot);
             writeGeneratedBlockModelAssets(definition, assetsRoot);
         }
     }
@@ -940,19 +942,25 @@ public final class ImportedBlockPacks {
     }
 
     private static String resolveParticleTexture(Definition definition) {
+        return Moreblock.MODID + ":block/" + definition.registryName() + "/texture";
+    }
+
+    private static void copyApiTextureToGeneratedPack(Definition definition, Path assetsRoot) throws IOException {
         ResourceLocation textureLocation = definition.textureLocation();
         if (textureLocation == null) {
-            return Moreblock.MODID + ":block/" + definition.registryName() + "/texture";
+            return;
         }
 
-        String path = textureLocation.getPath();
-        if (path.startsWith("textures/")) {
-            path = path.substring("textures/".length());
+        String resourcePath = "assets/" + textureLocation.getNamespace() + "/" + textureLocation.getPath();
+        try (InputStream inputStream = ImportedBlockPacks.class.getClassLoader().getResourceAsStream(resourcePath)) {
+            if (inputStream == null) {
+                Moreblock.LOGGER.warn("API 方块粒子贴图复制失败，找不到资源: {} ({})", textureLocation, definition.registryName());
+                return;
+            }
+            Path target = assetsRoot.resolve("textures").resolve("block").resolve(definition.registryName()).resolve("texture.png");
+            Files.createDirectories(target.getParent());
+            Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
         }
-        if (path.endsWith(".png")) {
-            path = path.substring(0, path.length() - 4);
-        }
-        return textureLocation.getNamespace() + ":" + path;
     }
 
     private static void writeLanguageFiles() throws IOException {
