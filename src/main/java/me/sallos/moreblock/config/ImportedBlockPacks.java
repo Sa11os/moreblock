@@ -526,18 +526,25 @@ public final class ImportedBlockPacks {
             String registryName = allocateRegistryName(firstNonBlank(packConfig.id(), folderName));
 
             GeoInspection inspection = inspectGeo(geoSource);
-            GeoHitboxSystem.Profile profile = new GeoHitboxSystem.Profile(
-                    "",
-                    inspection.hitboxBoneName(),
-                    true,
-                    // 导入方块的 geo 命中箱需要做一次水平翻转，才能与实际模型朝向对齐
-                    true,
-                    false,
-                    0.0d,
-                    0.0d,
-                    0.0d
-            );
-            GeoHitboxSystem.HorizontalShapes shapes = GeoHitboxSystem.loadHorizontalShapes(geoSource, profile);
+            GeoHitboxSystem.HorizontalShapes shapes;
+            if (inspection.hasHitboxBone()) {
+                GeoHitboxSystem.Profile profile = new GeoHitboxSystem.Profile(
+                        "",
+                        inspection.hitboxBoneName(),
+                        true,
+                        // 导入方块的 geo 命中箱需要做一次水平翻转，才能与实际模型朝向对齐
+                        true,
+                        false,
+                        0.0d,
+                        0.0d,
+                        0.0d
+                );
+                shapes = GeoHitboxSystem.loadHorizontalShapes(geoSource, profile);
+            } else {
+                // 没有显式 hitbox 骨骼时，回退为标准整方块碰撞箱
+                Moreblock.LOGGER.warn("导入方块 {} 未找到 hitbox 骨骼，已回退为 1x1x1 整方块碰撞箱", geoSource);
+                shapes = GeoHitboxSystem.HorizontalShapes.ofFullBlock();
+            }
             Definition definition = new Definition(
                     Moreblock.MODID,
                     registryName,
@@ -849,16 +856,15 @@ public final class ImportedBlockPacks {
             JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
             JsonArray geometries = root.getAsJsonArray("minecraft:geometry");
             if (geometries == null || geometries.size() == 0) {
-                return new GeoInspection("bone");
+                return GeoInspection.none();
             }
 
             JsonObject geometry = geometries.get(0).getAsJsonObject();
             JsonArray bones = geometry.getAsJsonArray("bones");
             if (bones == null || bones.size() == 0) {
-                return new GeoInspection("bone");
+                return GeoInspection.none();
             }
 
-            String firstBoneName = "bone";
             String hitboxBoneName = null;
             for (JsonElement boneElement : bones) {
                 JsonObject bone = boneElement.getAsJsonObject();
@@ -869,13 +875,10 @@ public final class ImportedBlockPacks {
                 String boneName = bone.get("name").getAsString();
                 if (Objects.equals(boneName, "hitbox")) {
                     hitboxBoneName = "hitbox";
-                }
-
-                if (firstBoneName.equals("bone")) {
-                    firstBoneName = boneName;
+                    break;
                 }
             }
-            return new GeoInspection(firstNonBlank(hitboxBoneName, firstBoneName));
+            return hitboxBoneName == null ? GeoInspection.none() : GeoInspection.hitbox(hitboxBoneName);
         }
     }
 
@@ -1362,6 +1365,17 @@ public final class ImportedBlockPacks {
     }
 
     private record GeoInspection(String hitboxBoneName) {
+        private static GeoInspection none() {
+            return new GeoInspection(null);
+        }
+
+        private static GeoInspection hitbox(String hitboxBoneName) {
+            return new GeoInspection(hitboxBoneName);
+        }
+
+        private boolean hasHitboxBone() {
+            return isPresent(hitboxBoneName);
+        }
     }
 
     private record ExampleConfigLanguage(
