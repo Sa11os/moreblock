@@ -2,7 +2,7 @@
 
 这份文档写给想在自己 mod 里复用 MoreBlock 自定义方块渲染、模型、贴图和交互底层能力的开发者。
 
-MoreBlock API 不负责替你的 mod 决定物品怎么注册、放到哪个创造模式页签，也不替你管理自己的内容分类。API 只提供一个底层方块注册与资源绑定工具：你的 mod 准备资源，调用 API 注册 MoreBlock 动态方块，然后由你的 mod 自己注册对应 `BlockItem`、语言文件和创造页签。
+MoreBlock API 不负责替你的 mod 决定物品怎么放到哪个创造模式页签，也不替你管理自己的内容分类。API 提供一个底层动态方块注册与资源绑定工具：你的 mod 准备资源，调用 API 注册 MoreBlock 动态方块；MoreBlock 会把它接入自身的动态方块和动态物品注册流程，之后你的 mod 再按需要维护语言文件、创造页签和额外逻辑。
 
 ## 适用版本
 
@@ -16,27 +16,28 @@ MoreBlock API 不负责替你的 mod 决定物品怎么注册、放到哪个创�
 ## API 负责什么
 
 - 注册一个使用 MoreBlock 动态模型渲染的方块
+- 为 API 方块接入 MoreBlock 动态物品注册流程
 - 绑定 GeckoLib `geo.json` 模型资源
 - 绑定贴图资源
 - 绑定可选的物品 display 模型资源
+- 提供 hitbox 骨骼名、创造页签显示、半透明渲染、亮度等基础参数
 - 提供坐下、躺下等基础交互参数
 - 提供右键、放置、移除事件回调
 
 ## API 不负责什么
 
-- 不自动帮外部 mod 注册 `BlockItem`
-- 不自动把外部 mod 的物品放入 MoreBlock 创造模式页签
 - 不替外部 mod 维护语言文件
 - 不替外部 mod 决定物品属性、堆叠数量、稀有度、创造栏位置
+- 不替外部 mod 创建自己的创造模式页签
 
-如果需要物品，请在你的 mod 里用自己的 `DeferredRegister<Item>` 注册。要放哪个创造页签，也在你的 mod 里自己处理。
+MoreBlock 会为 API 方块注册可用的动态物品。如果你只需要一个能放置方块的基础物品，可以直接使用 `RegisteredMoreBlock#item()` 获取 MoreBlock 生成的物品；如果你需要完全自定义物品属性或特殊逻辑，可以在自己的 mod 里额外注册物品并自行处理。
 
 ## 基本流程
 
 1. 在自己的 mod 资源目录准备 GeckoLib 模型、贴图和可选的物品 display 文件。
 2. 在自己的 mod 构造阶段调用 `MoreBlockApi.builder(...).register()` 注册动态方块。
-3. 在自己的 mod 里注册 `BlockItem`，绑定上一步拿到的方块。
-4. 在自己的 mod 里决定要不要把物品加入某个创造模式页签。
+3. 使用 `RegisteredMoreBlock#block()` 和 `RegisteredMoreBlock#item()` 获取 MoreBlock 注册出来的方块与基础物品。
+4. 在自己的 mod 里维护语言文件，并决定要不要把物品加入 MoreBlock 页签或自己的创造模式页签。
 5. 如需交互逻辑，通过 `MoreBlockEvents` 注册回调。
 
 ## 资源目录建议
@@ -62,7 +63,7 @@ src/main/resources/assets/examplemod/
 
 - geo：`examplemod:geo/block/blue_chair.geo.json`
 - texture：`examplemod:textures/block/blue_chair.png`
-- display：`examplemod:models/item/blue_chair.json`
+- display（可选）：`examplemod:models/item/blue_chair.json`
 
 如果你的贴图不放在这个自动路径，建议显式调用 `geo(...)`、`texture(...)` 和 `display(...)`。
 
@@ -84,6 +85,9 @@ public class ExampleMod {
     public static final RegisteredMoreBlock BLUE_CHAIR_BLOCK = MoreBlockApi.builder(MODID, "blue_chair")
             .name("蓝色椅子", "Blue Chair")
             .resourceBase("geo/block/blue_chair")
+            .hitboxBoneName("hitbox")
+            .showInMoreBlockTab(true)
+            .translucent(true)
             .sitting(0.45d)
             .lightLevel(0)
             .register();
@@ -101,50 +105,31 @@ moreblock:examplemod_blue_chair
 
 如果同名已存在，MoreBlock 会自动追加序号，避免重复注册名直接冲突。
 
-## 在你的 mod 里注册物品
+## 使用 MoreBlock 生成的物品
 
-MoreBlock 不会替 API 方块注册物品。你可以用自己的 `DeferredRegister<Item>` 注册：
-
-```java
-package com.example.examplemod;
-
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
-
-public final class ExampleItems {
-    public static final DeferredRegister<Item> REGISTRY = DeferredRegister.create(ForgeRegistries.ITEMS, ExampleMod.MODID);
-
-    public static final RegistryObject<Item> BLUE_CHAIR = REGISTRY.register("blue_chair", () ->
-            new BlockItem(ExampleMod.BLUE_CHAIR_BLOCK.block().orElseThrow().get(), new Item.Properties())
-    );
-
-    private ExampleItems() {
-    }
-
-    public static void register(IEventBus bus) {
-        REGISTRY.register(bus);
-    }
-}
-```
-
-然后在你的 mod 主类构造方法里注册你自己的物品表：
+MoreBlock 会为 API 方块注册一个基础动态物品，可通过 `RegisteredMoreBlock#item()` 获取。这个物品用于放置对应方块，并可以按 `showInMoreBlockTab(...)` 的设置显示在 MoreBlock 创造模式页签中。
 
 ```java
-public ExampleMod(FMLJavaModLoadingContext context) {
-    IEventBus modBus = context.getModEventBus();
-    ExampleItems.register(modBus);
-}
+RegisteredMoreBlock block = MoreBlockApi.builder(MODID, "blue_chair")
+        .name("蓝色椅子", "Blue Chair")
+        .resourceBase("geo/block/blue_chair")
+        .register();
+
+block.item().ifPresent(registryObject -> {
+    var item = registryObject.get();
+});
 ```
 
-这样物品属于你的 mod，由你的 mod 控制属性、语言键、创造页签和后续逻辑。
+如果你需要特殊物品属性、额外 NBT、自己的物品类或完全独立的注册名，可以继续在自己的 mod 里注册物品。此时需要注意不要和 MoreBlock 生成的基础物品在玩法入口上重复。
 
 ## 自己决定创造模式页签
 
-如果你想把物品放入自己的创造页签，可以按 Forge 正常方式写，例如：
+如果你想控制 API 方块物品显示在哪个创造页签里，可以分成两种情况：
+
+- 调用 `showInMoreBlockTab(true)`，让 MoreBlock 生成的基础物品显示在 MoreBlock 页签中。
+- 调用 `showInMoreBlockTab(false)`，隐藏 MoreBlock 页签里的入口，再按 Forge 正常方式加入自己的页签。
+
+例如加入原版建筑方块页签：
 
 ```java
 @Mod.EventBusSubscriber(modid = ExampleMod.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -155,13 +140,13 @@ public final class ExampleCreativeTabEvents {
     @SubscribeEvent
     public static void onBuildCreativeTab(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
-            event.accept(ExampleItems.BLUE_CHAIR.get());
+            ExampleMod.BLUE_CHAIR_BLOCK.item().ifPresent(registryObject -> event.accept(registryObject.get()));
         }
     }
 }
 ```
 
-也可以注册自己的 `CreativeModeTab`。MoreBlock 不会把 API 注册出来的方块物品自动加入 MoreBlock 页签。
+也可以注册自己的 `CreativeModeTab`。MoreBlock 不会替外部 Mod 决定是否加入其他页签，只会根据 `showInMoreBlockTab(...)` 决定是否出现在 MoreBlock 自己的页签中。
 
 ## Builder 参数
 
@@ -172,6 +157,9 @@ public final class ExampleCreativeTabEvents {
 | `geo(ResourceLocation)` | 设置 GeckoLib 模型资源。 |
 | `texture(ResourceLocation)` | 设置贴图资源。 |
 | `display(ResourceLocation)` | 设置物品 display 模型资源，可选。 |
+| `hitboxBoneName(name)` | 设置用于读取碰撞箱的骨骼名，未设置时默认为 `hitbox`。 |
+| `showInMoreBlockTab(value)` | 控制 MoreBlock 生成的基础物品是否显示在 MoreBlock 创造模式页签中，默认显示。 |
+| `translucent(value)` | 控制方块是否按半透明渲染处理，默认开启。 |
 | `resourceBase(path)` | 按固定规则快速推导资源路径，路径不符合时不建议使用。 |
 | `lightLevel(value)` | 设置亮度，范围会被限制在 0 到 15。 |
 | `sitting(height)` | 允许右键坐下，并设置座位高度。 |
@@ -228,7 +216,7 @@ MoreBlockEvents.onRemoveBlock((definition, level, pos, state, newState, movedByP
 
 ## 获取注册对象
 
-`register()` 返回 `RegisteredMoreBlock`，可以拿到注册名和方块 `RegistryObject`：
+`register()` 返回 `RegisteredMoreBlock`，可以拿到注册名、方块 id、方块 `RegistryObject` 和基础物品 `RegistryObject`：
 
 ```java
 RegisteredMoreBlock block = MoreBlockApi.builder(MODID, "blue_chair")
@@ -239,6 +227,12 @@ RegisteredMoreBlock block = MoreBlockApi.builder(MODID, "blue_chair")
 block.block().ifPresent(registryObject -> {
     var minecraftBlock = registryObject.get();
 });
+
+block.item().ifPresent(registryObject -> {
+    var minecraftItem = registryObject.get();
+});
+
+ResourceLocation blockId = block.blockId();
 ```
 
 注意：`RegistryObject#get()` 只能在 Forge 注册完成后安全调用。构造阶段只保存 `RegisteredMoreBlock` 即可，不要太早取实体对象。
@@ -266,7 +260,7 @@ side = "BOTH"
 
 ### 为什么创造栏里看不到物品？
 
-API 不会自动注册物品，也不会自动把物品加入 MoreBlock 页签。请确认你的 mod 已经注册了自己的 `BlockItem`，并把它加入你想要的创造页签。
+先检查是否调用了 `showInMoreBlockTab(false)`。这个参数会让 MoreBlock 生成的基础物品不显示在 MoreBlock 页签里；如果你想放进自己的页签，需要在 `BuildCreativeModeTabContentsEvent` 里手动 `accept`。
 
 ### 什么时候调用注册？
 

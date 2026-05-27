@@ -14,6 +14,7 @@ MoreBlock 是一个面向 Minecraft 1.20.1 Forge 的自定义方块导入模组�
 - 提供客户端与服务端导入内容一致性校验
 - 为导入方块提供独立创造模式页签
 - 支持通过配置为导入方块启用右键坐下、躺下功能
+- 提供外部 Mod 开发 API，可复用 MoreBlock 动态方块、资源绑定和交互回调能力
 
 ## 环境要求
 
@@ -87,6 +88,27 @@ config/moreblock/block/
 
 - `/moreblock block list`：列出当前已识别的导入包
 - `/moreblock block check`：检查手中物品对应的导入来源
+
+## API 文档
+
+MoreBlock 也提供给其他 Mod 调用的开发 API。外部 Mod 可以通过 `me.sallos.moreblock.api.MoreBlockApi` 注册使用 MoreBlock 动态模型渲染的方块，绑定 GeckoLib 模型、贴图、物品 display 资源，并按需启用亮度、半透明渲染、hitbox 骨骼、坐下、躺下等参数。
+
+API 方块会注册到 MoreBlock 的动态方块与动态物品流程中，实际方块 id 使用 `moreblock:<ownerModId>_<id>` 形式；是否显示在 MoreBlock 创造模式页签中，可通过 `showInMoreBlockTab(...)` 控制。外部 Mod 如果需要自己的创造页签、语言文件或额外物品逻辑，仍然应该在自己的 Mod 内维护。
+
+完整用法见：
+
+```text
+docs/api.md
+```
+
+API 文档包含以下内容：
+
+- `MoreBlockApi.builder(...)` 与 `registerBlock(...)` 的使用方式
+- `resourceBase(...)`、`geo(...)`、`texture(...)`、`display(...)` 的资源路径规则
+- `hitboxBoneName(...)`、`translucent(...)`、`lightLevel(...)`、`sitting(...)`、`lying(...)` 等构造参数
+- `MoreBlockEvents` 的右键、放置、移除回调
+- `RegisteredMoreBlock` 获取注册名、方块对象和物品对象的方法
+- 外部 Mod 的 `mods.toml` 依赖声明示例
 
 ## Blockbench 插件
 
