@@ -1,8 +1,11 @@
 package me.sallos.moreblock;
 
 import me.sallos.moreblock.config.ImportedBlockPacks;
+import me.sallos.moreblock.config.ImportedEntityPacks;
 import me.sallos.moreblock.init.ImportedBlockEntities;
 import me.sallos.moreblock.init.ImportedBlocks;
+import me.sallos.moreblock.init.ImportedEntityItems;
+import me.sallos.moreblock.init.ImportedEntityTypes;
 import me.sallos.moreblock.init.MoreBlockCreativeTabs;
 import me.sallos.moreblock.init.MoreBlockEntityTypes;
 import me.sallos.moreblock.init.ImportedItems;
@@ -71,14 +74,17 @@ public class Moreblock {
 
     public Moreblock(FMLJavaModLoadingContext context) {
         ImportedBlockPacks.bootstrap();
+        ImportedEntityPacks.bootstrap();
         GeckoLib.initialize();
         MinecraftForge.EVENT_BUS.register(this);
 
         IEventBus modEventBus = context.getModEventBus();
         ImportedBlocks.register(modEventBus);
         ImportedBlockEntities.register(modEventBus);
+        ImportedEntityTypes.register(modEventBus);
         MoreBlockEntityTypes.register(modEventBus);
         ImportedItems.register(modEventBus);
+        ImportedEntityItems.register(modEventBus);
         MoreBlockCreativeTabs.register(modEventBus);
         MoreBlockNetworkMessages.register();
     }

@@ -1,16 +1,18 @@
 # MoreBlock
 
-MoreBlock 是一个面向 Minecraft 1.20.1 Forge 的自定义方块导入模组。
+MoreBlock 是一个面向 Minecraft 1.20.1 Forge 的自定义内容导入模组。
 
-它会在运行时读取 `config/moreblock/block` 目录中的方块包，并将对应的方块、物品、方块实体与客户端资源加载进游戏。方块包既可以是普通文件夹，也可以是 zip 压缩包，适合用于整合包扩展、服务器内容分发和私有项目中的自定义装饰方块管理。
+它会在运行时读取 `config/moreblock/block` 和 `config/moreblock/entity` 目录中的导入包，并将对应的方块、实体、物品与客户端资源加载进游戏。导入包既可以是普通文件夹，也可以是 zip 压缩包，适合用于整合包扩展、服务器内容分发和私有项目中的自定义内容管理。
 
 ## 特性
 
 - 从 `config/moreblock/block` 自动扫描并导入自定义方块包
+- 从 `config/moreblock/entity` 自动扫描并导入自定义实体包
 - 同时支持文件夹与 zip 压缩包两种载入方式
 - 支持在外层包中继续包含多个子文件夹或子 zip
 - 自动创建配置目录、示例配置和参数说明文件
 - 根据导入内容在运行时生成并挂载客户端资源
+- 为导入实体自动生成刷怪蛋
 - 提供客户端与服务端导入内容一致性校验
 - 为导入方块提供独立创造模式页签
 - 支持通过配置为导入方块启用右键坐下、躺下功能
@@ -28,7 +30,7 @@ MoreBlock 是一个面向 Minecraft 1.20.1 Forge 的自定义方块导入模组�
 2. 安装 Forge `47.x`
 3. 安装 GeckoLib 4
 4. 将 `MoreBlock` 放入 `mods` 文件夹
-5. 首次启动游戏，让模组自动创建 `config/moreblock/block`
+5. 首次启动游戏，让模组自动创建 `config/moreblock/block` 和 `config/moreblock/entity`
 
 ## 快速开始
 
@@ -36,12 +38,15 @@ MoreBlock 是一个面向 Minecraft 1.20.1 Forge 的自定义方块导入模组�
 
 ```text
 config/moreblock/block
+config/moreblock/entity
 ```
 
-将你的方块包放入该目录后，重新进入游戏即可完成扫描与导入。支持以下两种形式：
+将你的方块包或实体包放入对应目录后，重新进入游戏即可完成扫描与导入。支持以下两种形式：
 
 - 一个完整的方块包文件夹
 - 一个完整的方块包 zip 压缩包
+- 一个完整的实体包文件夹
+- 一个完整的实体包 zip 压缩包
 
 示例结构：
 
@@ -53,6 +58,14 @@ config/moreblock/block/
 │  ├─ texture.png
 │  └─ example-display.json
 └─ more_blocks.zip
+
+config/moreblock/entity/
+├─ BlueSlime/
+│  ├─ blue_slime.json
+│  ├─ blue_slime.geo.json
+│  ├─ blue_slime.animation.json
+│  └─ texture.png
+└─ more_entities.zip
 ```
 
 ## 方块包结构
@@ -76,7 +89,10 @@ config/moreblock/block/
 - `example.json`：标准 JSON 示例配置
 - `example.md`：对应参数说明文档
 
-当前版本的配置已支持基础导入参数、亮度设置，以及导入方块的坐下交互相关参数。
+当前版本的配置已支持：
+
+- 方块导入参数、亮度设置，以及导入方块的坐下交互相关参数
+- 实体导入参数、碰撞尺寸、同步范围和刷怪蛋颜色相关参数
 
 ## 联机说明
 
@@ -88,6 +104,30 @@ config/moreblock/block/
 
 - `/moreblock block list`：列出当前已识别的导入包
 - `/moreblock block check`：检查手中物品对应的导入来源
+- `/moreblock entity list`：列出当前已识别的导入实体
+- `/moreblock entity check`：检查手中刷怪蛋对应的导入来源
+
+## 实体导入
+
+实体导入当前已经提供基础能力，目录为：
+
+```text
+config/moreblock/entity
+```
+
+基础版会自动完成：
+
+- 扫描实体配置目录和 zip
+- 解析 GeckoLib `geo`、贴图和可选动画文件
+- 生成实体运行时资源包
+- 注册动态实体类型
+- 为每个导入实体自动生成刷怪蛋
+
+完整说明见：
+
+```text
+docs/实体导入说明.md
+```
 
 ## API 文档
 

@@ -2,6 +2,7 @@ package me.sallos.moreblock.init;
 
 import me.sallos.moreblock.Moreblock;
 import me.sallos.moreblock.config.ImportedBlockPacks;
+import me.sallos.moreblock.config.ImportedEntityPacks;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -45,7 +46,8 @@ public final class MoreBlockCreativeTabs {
     }
 
     private static List<ItemLike> collectImportedItems() {
-        return ImportedBlockPacks.getDynamicItemRegistryObjects().stream()
+        List<ItemLike> importedItems = new java.util.ArrayList<>();
+        ImportedBlockPacks.getDynamicItemRegistryObjects().stream()
                 .filter(RegistryObject::isPresent)
                 .map(RegistryObject::get)
                 .filter(item -> {
@@ -53,6 +55,16 @@ public final class MoreBlockCreativeTabs {
                     return definition != null && definition.showInMoreBlockTab();
                 })
                 .map(item -> (ItemLike) item)
-                .toList();
+                .forEach(importedItems::add);
+        ImportedEntityPacks.getDynamicEggRegistryObjects().stream()
+                .filter(RegistryObject::isPresent)
+                .map(RegistryObject::get)
+                .filter(item -> {
+                    ImportedEntityPacks.Definition definition = ImportedEntityPacks.getDefinition(item);
+                    return definition != null && definition.showInMoreBlockTab();
+                })
+                .map(item -> (ItemLike) item)
+                .forEach(importedItems::add);
+        return List.copyOf(importedItems);
     }
 }

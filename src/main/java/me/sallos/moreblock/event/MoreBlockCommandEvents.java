@@ -2,6 +2,7 @@ package me.sallos.moreblock.event;
 
 import me.sallos.moreblock.Moreblock;
 import me.sallos.moreblock.config.ImportedBlockPacks;
+import me.sallos.moreblock.config.ImportedEntityPacks;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -26,7 +27,12 @@ public final class MoreBlockCommandEvents {
                         .then(Commands.literal("list")
                                 .executes(context -> listLoadedConfiguredBlocks(context.getSource())))
                         .then(Commands.literal("check")
-                                .executes(context -> checkHeldConfiguredBlock(context.getSource())))));
+                                .executes(context -> checkHeldConfiguredBlock(context.getSource()))))
+                .then(Commands.literal("entity")
+                        .then(Commands.literal("list")
+                                .executes(context -> listLoadedConfiguredEntities(context.getSource())))
+                        .then(Commands.literal("check")
+                                .executes(context -> checkHeldConfiguredEntity(context.getSource())))));
     }
 
     private static int checkHeldConfiguredBlock(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
@@ -63,6 +69,45 @@ public final class MoreBlockCommandEvents {
 
         source.sendSuccess(() -> Component.literal("当前已读取 " + definitions.size() + " 个导入方块："), false);
         for (ImportedBlockPacks.Definition definition : definitions) {
+            source.sendSuccess(() -> Component.literal("- " + definition.displayName() + " [" + definition.registryName() + "]"), false);
+        }
+        return definitions.size();
+    }
+
+    private static int checkHeldConfiguredEntity(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ItemStack held = player.getMainHandItem();
+        if (held.isEmpty()) {
+            source.sendFailure(Component.literal("你手上没有持有任何物品。"));
+            return 0;
+        }
+
+        ImportedEntityPacks.Definition definition = ImportedEntityPacks.getDefinition(held.getItem());
+        if (definition == null) {
+            source.sendFailure(Component.literal("手持物品不是导入实体的刷怪蛋。"));
+            return 0;
+        }
+
+        String zipName = definition.sourceZipName();
+        if (zipName != null) {
+            source.sendSuccess(() -> Component.literal(
+                    "实体「" + definition.displayName() + "」[" + definition.registryName() + "] 来自压缩包：" + zipName), false);
+        } else {
+            source.sendSuccess(() -> Component.literal(
+                    "实体「" + definition.displayName() + "」[" + definition.registryName() + "] 来自文件夹：" + definition.sourceFolderName()), false);
+        }
+        return 1;
+    }
+
+    private static int listLoadedConfiguredEntities(CommandSourceStack source) {
+        Collection<ImportedEntityPacks.Definition> definitions = ImportedEntityPacks.getDefinitions();
+        if (definitions.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("当前没有读取到任何导入实体。"), false);
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("当前已读取 " + definitions.size() + " 个导入实体："), false);
+        for (ImportedEntityPacks.Definition definition : definitions) {
             source.sendSuccess(() -> Component.literal("- " + definition.displayName() + " [" + definition.registryName() + "]"), false);
         }
         return definitions.size();
