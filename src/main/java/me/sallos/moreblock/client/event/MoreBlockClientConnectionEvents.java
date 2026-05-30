@@ -2,6 +2,7 @@ package me.sallos.moreblock.client.event;
 
 import me.sallos.moreblock.Moreblock;
 import me.sallos.moreblock.network.ImportedBlockPackSync;
+import me.sallos.moreblock.network.ImportedEntityPackSync;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -25,13 +26,21 @@ public final class MoreBlockClientConnectionEvents {
         }
 
         Component message = ImportedBlockPackSync.consumeRememberedClientDisconnectMessage();
+        Component title = null;
+        if (message != null) {
+            title = Objects.requireNonNull(Component.translatable("disconnect.moreblock.configured_pack.title"));
+        } else {
+            message = ImportedEntityPackSync.consumeRememberedClientDisconnectMessage();
+            if (message != null) {
+                title = Objects.requireNonNull(Component.translatable("disconnect.moreblock.configured_entity_pack.title"));
+            }
+        }
         if (message == null) {
             return;
         }
 
         Screen currentScreen = event.getCurrentScreen();
         Screen parent = currentScreen == null ? new TitleScreen() : Objects.requireNonNull(currentScreen);
-        Component title = Objects.requireNonNull(Component.translatable("disconnect.moreblock.configured_pack.title"));
         event.setNewScreen(new DisconnectedScreen(parent, title, message));
     }
 }

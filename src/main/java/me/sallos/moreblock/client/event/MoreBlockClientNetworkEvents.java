@@ -2,6 +2,8 @@ package me.sallos.moreblock.client.event;
 
 import me.sallos.moreblock.Moreblock;
 import me.sallos.moreblock.config.ImportedBlockPacks;
+import me.sallos.moreblock.config.ImportedEntityPacks;
+import me.sallos.moreblock.network.message.SyncImportedEntityManifestToServerMessage;
 import me.sallos.moreblock.network.message.SyncImportedBlockManifestToServerMessage;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -16,5 +18,6 @@ public final class MoreBlockClientNetworkEvents {
     @SubscribeEvent
     public static void onClientLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
         Moreblock.PACKET_HANDLER.sendToServer(new SyncImportedBlockManifestToServerMessage(ImportedBlockPacks.getPackManifest()));
+        Moreblock.PACKET_HANDLER.sendToServer(new SyncImportedEntityManifestToServerMessage(ImportedEntityPacks.getPackManifest()));
     }
 }

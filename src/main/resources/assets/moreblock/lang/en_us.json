@@ -6,5 +6,12 @@
   "disconnect.moreblock.configured_pack.mismatch.missing": "Client is missing these packs:",
   "disconnect.moreblock.configured_pack.mismatch.extra": "Client has extra packs:",
   "disconnect.moreblock.configured_pack.mismatch.different": "These packs differ from the server:",
-  "disconnect.moreblock.configured_pack.mismatch.footer": "Please sync the imported block packs between client and server, then try again."
+  "disconnect.moreblock.configured_pack.mismatch.footer": "Please sync the imported block packs between client and server, then try again.",
+  "disconnect.moreblock.configured_entity_pack.title": "Cannot Join Server",
+  "disconnect.moreblock.configured_entity_pack.timeout": "Cannot join server: client imported entity pack verification was not received.\nPlease make sure the client has the latest MoreBlock installed and try again.",
+  "disconnect.moreblock.configured_entity_pack.mismatch.header": "Cannot join server: imported entity packs do not match the server",
+  "disconnect.moreblock.configured_entity_pack.mismatch.missing": "Client is missing these packs:",
+  "disconnect.moreblock.configured_entity_pack.mismatch.extra": "Client has extra packs:",
+  "disconnect.moreblock.configured_entity_pack.mismatch.different": "These packs differ from the server:",
+  "disconnect.moreblock.configured_entity_pack.mismatch.footer": "Please sync the imported entity packs between client and server, then try again."
 }
