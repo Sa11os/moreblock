@@ -6,7 +6,6 @@ import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
-import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -19,11 +18,18 @@ import net.minecraft.world.level.Level;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.AnimationState;
+import software.bernie.geckolib.core.animation.RawAnimation;
+import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 @SuppressWarnings("null")
 public class ImportedEntity extends PathfinderMob implements GeoEntity, RangedAttackMob {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+    private ImportedEntityPacks.EntityAnimationState activeAnimationState = ImportedEntityPacks.EntityAnimationState.IDLE;
+    private String activeAnimationName;
+    private long nextAnimationSwitchTick;
 
     public ImportedEntity(EntityType<? extends ImportedEntity> entityType, Level level) {
         super(entityType, level);
@@ -56,13 +62,16 @@ public class ImportedEntity extends PathfinderMob implements GeoEntity, RangedAt
                 3,
                 true,
                 null,
+                true,
+                false,
                 0,
                 0,
                 true,
                 true,
                 null,
                 null,
-                null)
+                null,
+                ImportedEntityPacks.AnimationProfile.defaultProfile())
                 : definition;
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, resolvedDefinition.maxHealth())
@@ -133,10 +142,127 @@ public class ImportedEntity extends PathfinderMob implements GeoEntity, RangedAt
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        ImportedEntityPacks.Definition definition = getDefinition();
+        int transitionTicks = definition == null || definition.animationTransition() ? 5 : 0;
+        controllers.add(new AnimationController<>(this, "main", transitionTicks, this::updateAnimation));
     }
 
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return cache;
+    }
+
+    private PlayState updateAnimation(AnimationState<ImportedEntity> state) {
+        ImportedEntityPacks.Definition definition = getDefinition();
+        ImportedEntityPacks.AnimationProfile profile = definition == null
+                ? ImportedEntityPacks.AnimationProfile.defaultProfile()
+                : definition.animationProfile();
+        ImportedEntityPacks.EntityAnimationState desiredState = resolveDesiredAnimationState(state);
+        ImportedEntityPacks.AnimationOption option = selectAnimationOption(profile, desiredState);
+        if (option == null) {
+            return PlayState.STOP;
+        }
+
+        boolean shouldSwitch = desiredState != activeAnimationState
+                || activeAnimationName == null
+                || tickCount >= nextAnimationSwitchTick;
+        if (!shouldSwitch) {
+            return PlayState.CONTINUE;
+        }
+
+        activeAnimationState = desiredState;
+        activeAnimationName = option.animationName();
+        nextAnimationSwitchTick = desiredState == ImportedEntityPacks.EntityAnimationState.DIE
+                ? Long.MAX_VALUE
+                : (long) tickCount + Math.max(1, option.durationTicks());
+
+        if (!isAnimationTransitionEnabled()) {
+            state.getController().forceAnimationReset();
+        }
+        if (option.playback() == ImportedEntityPacks.AnimationPlayback.LOOP) {
+            state.setAnimation(RawAnimation.begin().thenLoop(option.animationName()));
+        } else {
+            state.setAnimation(RawAnimation.begin().thenPlay(option.animationName()));
+        }
+        return PlayState.CONTINUE;
+    }
+
+    private boolean isAnimationTransitionEnabled() {
+        ImportedEntityPacks.Definition definition = getDefinition();
+        return definition == null || definition.animationTransition();
+    }
+
+    private ImportedEntityPacks.EntityAnimationState resolveDesiredAnimationState(AnimationState<ImportedEntity> state) {
+        ImportedEntityPacks.AnimationProfile profile = getDefinition() == null
+                ? ImportedEntityPacks.AnimationProfile.defaultProfile()
+                : getDefinition().animationProfile();
+        if (isDeadOrDying()) {
+            return ImportedEntityPacks.EntityAnimationState.DIE;
+        }
+        if (hurtTime > 0 && profile.hasState(ImportedEntityPacks.EntityAnimationState.HURT)) {
+            return ImportedEntityPacks.EntityAnimationState.HURT;
+        }
+        if (tickCount <= resolveStateDuration(profile, ImportedEntityPacks.EntityAnimationState.SPAWN)
+                && profile.hasState(ImportedEntityPacks.EntityAnimationState.SPAWN)) {
+            return ImportedEntityPacks.EntityAnimationState.SPAWN;
+        }
+        if (swinging || attackAnim > 0.05f) {
+            return ImportedEntityPacks.EntityAnimationState.ATTACK;
+        }
+        if (state.isMoving()) {
+            if (profile.hasState(ImportedEntityPacks.EntityAnimationState.RUN) && isRunningAnimationState()) {
+                return ImportedEntityPacks.EntityAnimationState.RUN;
+            }
+            return ImportedEntityPacks.EntityAnimationState.WALK;
+        }
+        return ImportedEntityPacks.EntityAnimationState.IDLE;
+    }
+
+    private boolean isRunningAnimationState() {
+        double horizontalSpeed = getDeltaMovement().horizontalDistance();
+        double configuredSpeed = getAttributeValue(Attributes.MOVEMENT_SPEED);
+        return horizontalSpeed >= 0.08d || configuredSpeed >= 0.32d;
+    }
+
+    private int resolveStateDuration(
+            ImportedEntityPacks.AnimationProfile profile,
+            ImportedEntityPacks.EntityAnimationState animationState
+    ) {
+        int maxDuration = 0;
+        for (ImportedEntityPacks.AnimationOption option : profile.optionsFor(animationState)) {
+            maxDuration = Math.max(maxDuration, option.durationTicks());
+        }
+        return maxDuration;
+    }
+
+    private ImportedEntityPacks.AnimationOption selectAnimationOption(
+            ImportedEntityPacks.AnimationProfile profile,
+            ImportedEntityPacks.EntityAnimationState state
+    ) {
+        java.util.List<ImportedEntityPacks.AnimationOption> options = profile.optionsFor(state);
+        if (options.isEmpty()) {
+            return null;
+        }
+        if (options.size() == 1) {
+            return options.get(0);
+        }
+
+        double totalWeight = 0.0d;
+        for (ImportedEntityPacks.AnimationOption option : options) {
+            totalWeight += Math.max(0.0d, option.weight());
+        }
+        if (totalWeight <= 0.0d) {
+            return options.get(0);
+        }
+
+        double randomValue = random.nextDouble() * totalWeight;
+        double currentWeight = 0.0d;
+        for (ImportedEntityPacks.AnimationOption option : options) {
+            currentWeight += Math.max(0.0d, option.weight());
+            if (randomValue <= currentWeight) {
+                return option;
+            }
+        }
+        return options.get(options.size() - 1);
     }
 }

@@ -24,4 +24,13 @@ public class ImportedEntityRenderer extends GeoEntityRenderer<ImportedEntity> {
         }
         return super.getRenderType(animatable, texture, bufferSource, partialTick);
     }
+
+    @Override
+    protected float getDeathMaxRotation(ImportedEntity animatable) {
+        ImportedEntityPacks.Definition definition = animatable.getDefinition();
+        if (definition != null && definition.disableVanillaDeathAnimation()) {
+            return 0.0f;
+        }
+        return super.getDeathMaxRotation(animatable);
+    }
 }

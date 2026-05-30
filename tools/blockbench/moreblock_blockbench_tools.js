@@ -1,4 +1,5 @@
 let moreblock_export_action;
+let moreblock_export_entity_action;
 let moreblock_generate_hitbox_action;
 
 (function() {
@@ -6,23 +7,51 @@ let moreblock_generate_hitbox_action;
     const TEXT = {
         zh: {
             dialogTitle: '导出 MoreBlock 配置 JSON',
+            entityDialogTitle: '导出 MoreBlock 实体配置 JSON',
             blockId: '方块 ID',
+            entityId: '实体 ID',
             chineseName: '中文名称',
             englishName: '英文名称',
             geoFile: '模型文件',
             textureFile: '贴图文件',
+            animationFile: '动画文件',
             displayFile: '显示参数文件',
             lightLevel: '亮度',
             canSit: '可坐下',
             seatHeight: '坐下高度',
             canLie: '可躺下',
             lyingHeight: '躺下高度',
+            entityWidth: '实体宽度',
+            entityHeight: '实体高度',
+            eyeHeight: '视线高度',
+            maxHealth: '最大生命值',
+            movementSpeed: '移动速度',
+            followRange: '跟随距离',
+            attackDamage: '攻击伤害',
+            armor: '护甲',
+            knockbackResistance: '击退抗性',
+            trackingRange: '追踪距离',
+            updateInterval: '更新间隔',
+            aiEnabled: '启用 AI',
+            aiTemplate: '原版 AI 模板',
+            animationTransition: '动作切换过渡',
+            disableVanillaDeathAnimation: '禁用原版死亡翻转',
+            translucent: '半透明渲染',
+            showInMoreBlockTab: '显示在 MoreBlock 页签',
+            spawnEggPrimaryColor: '刷怪蛋主色',
+            spawnEggSecondaryColor: '刷怪蛋副色',
+            includeAnimationStates: '附带动画状态模板',
+            includeAnimationStatesDescription: '勾选后会写入 `animation_states` 示例，方便直接按 idle、walk、attack、die 命名继续改。',
             exportType: 'MoreBlock 配置 JSON',
+            entityExportType: 'MoreBlock 实体配置 JSON',
             exported: 'MoreBlock 配置已导出',
+            entityExported: 'MoreBlock 实体配置已导出',
             pluginTitle: 'MoreBlock Blockbench 工具',
-            pluginDescription: '从 Blockbench 导出 MoreBlock 方块配置 JSON，并自动生成 MoreBlock 可识别的 hitbox。',
+            pluginDescription: '从 Blockbench 导出 MoreBlock 方块/实体配置 JSON，并自动生成 MoreBlock 可识别的 hitbox。',
             actionName: '导出 MoreBlock 配置 JSON',
             actionDescription: '创建 MoreBlock 方块配置 JSON 文件',
+            entityActionName: '导出 MoreBlock 实体配置 JSON',
+            entityActionDescription: '创建 MoreBlock 实体配置 JSON 文件',
             hitboxActionName: '生成 MoreBlock Hitbox',
             simpleHitboxActionName: '生成简单 Hitbox',
             complexHitboxActionName: '生成复杂 Hitbox',
@@ -43,27 +72,57 @@ let moreblock_generate_hitbox_action;
             hitboxGeneratedWithCount: count => `MoreBlock hitbox 已生成：${count} 个盒子`,
             noModelCubes: '当前模型没有可用于计算 hitbox 的方块',
             defaultChineseName: '自定义方块',
-            defaultEnglishName: 'Custom Block'
+            defaultEnglishName: 'Custom Block',
+            defaultEntityChineseName: '自定义实体',
+            defaultEntityEnglishName: 'Custom Entity'
         },
         en: {
             dialogTitle: 'Export MoreBlock Config JSON',
+            entityDialogTitle: 'Export MoreBlock Entity Config JSON',
             blockId: 'Block ID',
+            entityId: 'Entity ID',
             chineseName: 'Chinese Name',
             englishName: 'English Name',
             geoFile: 'Geo File',
             textureFile: 'Texture File',
+            animationFile: 'Animation File',
             displayFile: 'Display File',
             lightLevel: 'Light Level',
             canSit: 'Can Sit',
             seatHeight: 'Seat Height',
             canLie: 'Can Lie',
             lyingHeight: 'Lying Height',
+            entityWidth: 'Entity Width',
+            entityHeight: 'Entity Height',
+            eyeHeight: 'Eye Height',
+            maxHealth: 'Max Health',
+            movementSpeed: 'Movement Speed',
+            followRange: 'Follow Range',
+            attackDamage: 'Attack Damage',
+            armor: 'Armor',
+            knockbackResistance: 'Knockback Resistance',
+            trackingRange: 'Tracking Range',
+            updateInterval: 'Update Interval',
+            aiEnabled: 'Enable AI',
+            aiTemplate: 'Vanilla AI Template',
+            animationTransition: 'Animation Transition',
+            disableVanillaDeathAnimation: 'Disable Vanilla Death Flip',
+            translucent: 'Translucent Render',
+            showInMoreBlockTab: 'Show In MoreBlock Tab',
+            spawnEggPrimaryColor: 'Spawn Egg Primary Color',
+            spawnEggSecondaryColor: 'Spawn Egg Secondary Color',
+            includeAnimationStates: 'Include Animation State Template',
+            includeAnimationStatesDescription: 'When enabled, the exported JSON will include an `animation_states` template for idle, walk, attack and die style naming.',
             exportType: 'MoreBlock Config JSON',
+            entityExportType: 'MoreBlock Entity Config JSON',
             exported: 'MoreBlock config exported',
+            entityExported: 'MoreBlock entity config exported',
             pluginTitle: 'MoreBlock Blockbench Tools',
-            pluginDescription: 'Export a MoreBlock block config JSON from Blockbench and generate a MoreBlock hitbox bone.',
+            pluginDescription: 'Export MoreBlock block/entity config JSON from Blockbench and generate a MoreBlock hitbox bone.',
             actionName: 'Export MoreBlock Config JSON',
             actionDescription: 'Create a MoreBlock block config JSON file',
+            entityActionName: 'Export MoreBlock Entity Config JSON',
+            entityActionDescription: 'Create a MoreBlock entity config JSON file',
             hitboxActionName: 'Generate MoreBlock Hitbox',
             simpleHitboxActionName: 'Generate Simple Hitbox',
             complexHitboxActionName: 'Generate Complex Hitbox',
@@ -84,7 +143,9 @@ let moreblock_generate_hitbox_action;
             hitboxGeneratedWithCount: count => `MoreBlock hitbox generated: ${count} boxes`,
             noModelCubes: 'No model cubes are available for hitbox calculation',
             defaultChineseName: '自定义方块',
-            defaultEnglishName: 'Custom Block'
+            defaultEnglishName: 'Custom Block',
+            defaultEntityChineseName: 'Custom Entity',
+            defaultEntityEnglishName: 'Custom Entity'
         }
     };
 
@@ -110,13 +171,13 @@ let moreblock_generate_hitbox_action;
         return getLanguageCode().startsWith('zh') ? TEXT.zh : TEXT.en;
     }
 
-    function sanitizeId(value) {
+    function sanitizeId(value, fallback = 'custom_block') {
         return String(value || '')
             .trim()
             .toLowerCase()
             .replace(/[^a-z0-9_\-]+/g, '_')
             .replace(/_+/g, '_')
-            .replace(/^_+|_+$/g, '') || 'custom_block';
+            .replace(/^_+|_+$/g, '') || fallback;
     }
 
     function getProjectBaseName() {
@@ -134,10 +195,47 @@ let moreblock_generate_hitbox_action;
         return baseName.toLowerCase().endsWith('.geo') ? `${baseName}.json` : `${baseName}.geo.json`;
     }
 
+    function getDefaultAnimationFile() {
+        return `${getProjectBaseName()}.animation.json`;
+    }
+
+    function roundTo(value, decimals = 3) {
+        const factor = Math.pow(10, decimals);
+        return Math.round(Number(value) * factor) / factor;
+    }
+
+    function clampNumber(value, fallback, min, max) {
+        const numeric = Number.parseFloat(value);
+        if (!Number.isFinite(numeric)) {
+            return fallback;
+        }
+        return Math.min(max, Math.max(min, numeric));
+    }
+
+    function getSuggestedEntityMetrics() {
+        const sourceBoxes = getSourceCubes().map(getCubeBounds).filter(box => getBoxVolume(box) > 0);
+        const bounds = calculateBoundsFromBoxes(sourceBoxes);
+        if (!bounds) {
+            return {
+                width: 0.6,
+                height: 1.8,
+                eyeHeight: 1.62
+            };
+        }
+
+        const width = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 16;
+        const height = (bounds.maxY - bounds.minY) / 16;
+        return {
+            width: roundTo(Math.max(0.1, width)),
+            height: roundTo(Math.max(0.1, height)),
+            eyeHeight: roundTo(Math.max(0.05, height * 0.85))
+        };
+    }
+
     function buildConfig(form) {
         const text = getText();
         const config = {
-            id: sanitizeId(form.id),
+            id: sanitizeId(form.id, 'custom_block'),
             name: {
                 zh_cn: String(form.zh_cn || '').trim() || text.defaultChineseName,
                 en_us: String(form.en_us || '').trim() || text.defaultEnglishName
@@ -155,6 +253,77 @@ let moreblock_generate_hitbox_action;
         if (display) {
             config.display = display;
         }
+        return config;
+    }
+
+    function buildEntityConfig(form) {
+        const text = getText();
+        const metrics = getSuggestedEntityMetrics();
+        const config = {
+            id: sanitizeId(form.id, 'custom_entity'),
+            name: {
+                zh_cn: String(form.zh_cn || '').trim() || text.defaultEntityChineseName,
+                en_us: String(form.en_us || '').trim() || text.defaultEntityEnglishName
+            },
+            geo: String(form.geo || '').trim() || getDefaultGeoFile(),
+            texture: String(form.texture || '').trim() || 'texture.png',
+            width: clampNumber(form.width, metrics.width, 0.1, 64),
+            height: clampNumber(form.height, metrics.height, 0.1, 64),
+            eye_height: clampNumber(form.eye_height, metrics.eyeHeight, 0.05, 64),
+            max_health: clampNumber(form.max_health, 20, 1, 2048),
+            movement_speed: clampNumber(form.movement_speed, 0.2, 0, 10),
+            follow_range: clampNumber(form.follow_range, 16, 0, 256),
+            attack_damage: clampNumber(form.attack_damage, 2, 0, 2048),
+            armor: clampNumber(form.armor, 0, 0, 2048),
+            knockback_resistance: clampNumber(form.knockback_resistance, 0.2, 0, 1),
+            tracking_range: Math.round(clampNumber(form.tracking_range, 8, 1, 256)),
+            update_interval: Math.round(clampNumber(form.update_interval, 3, 1, 60)),
+            ai_enabled: Boolean(form.ai_enabled),
+            ai_template: String(form.ai_template || '').trim() || 'minecraft:zombie',
+            animation_transition: Boolean(form.animation_transition),
+            disable_vanilla_death_animation: Boolean(form.disable_vanilla_death_animation),
+            spawn_egg_primary_color: String(form.spawn_egg_primary_color || '').trim() || '#4b7cf0',
+            spawn_egg_secondary_color: String(form.spawn_egg_secondary_color || '').trim() || '#d8e4ff',
+            show_in_moreblock_tab: Boolean(form.show_in_moreblock_tab),
+            translucent: Boolean(form.translucent)
+        };
+
+        const animation = String(form.animation || '').trim();
+        if (animation) {
+            config.animation = animation;
+        }
+
+        if (Boolean(form.include_animation_states)) {
+            config.animation_states = {
+                idle: {
+                    idle: 1.0,
+                    idle_1: 0.6,
+                    idle_2: 0.4
+                },
+                walk: {
+                    walk: 1.0,
+                    walk_1: 0.5
+                },
+                run: {
+                    run: 1.0
+                },
+                attack: {
+                    attack: 1.0,
+                    attack_1: 0.8
+                },
+                hurt: {
+                    hurt: 1.0
+                },
+                spawn: {
+                    spawn: 1.0
+                },
+                die: {
+                    die: 1.0,
+                    die_1: 0.6
+                }
+            };
+        }
+
         return config;
     }
 
@@ -882,12 +1051,206 @@ let moreblock_generate_hitbox_action;
         dialog.show();
     }
 
+    function showEntityExportDialog() {
+        const text = getText();
+        const baseName = getProjectBaseName();
+        const defaultId = sanitizeId(baseName, 'custom_entity');
+        const metrics = getSuggestedEntityMetrics();
+        const dialog = new Dialog({
+            id: 'moreblock_entity_config_export_dialog',
+            title: text.entityDialogTitle,
+            width: 640,
+            form: {
+                id: {
+                    label: text.entityId,
+                    type: 'text',
+                    value: defaultId
+                },
+                zh_cn: {
+                    label: text.chineseName,
+                    type: 'text',
+                    value: baseName === 'custom_block' ? text.defaultEntityChineseName : baseName
+                },
+                en_us: {
+                    label: text.englishName,
+                    type: 'text',
+                    value: text.defaultEntityEnglishName
+                },
+                geo: {
+                    label: text.geoFile,
+                    type: 'text',
+                    value: getDefaultGeoFile()
+                },
+                texture: {
+                    label: text.textureFile,
+                    type: 'text',
+                    value: 'texture.png'
+                },
+                animation: {
+                    label: text.animationFile,
+                    type: 'text',
+                    value: getDefaultAnimationFile()
+                },
+                width: {
+                    label: text.entityWidth,
+                    type: 'number',
+                    value: metrics.width,
+                    min: 0.1,
+                    max: 64,
+                    step: 0.01
+                },
+                height: {
+                    label: text.entityHeight,
+                    type: 'number',
+                    value: metrics.height,
+                    min: 0.1,
+                    max: 64,
+                    step: 0.01
+                },
+                eye_height: {
+                    label: text.eyeHeight,
+                    type: 'number',
+                    value: metrics.eyeHeight,
+                    min: 0.05,
+                    max: 64,
+                    step: 0.01
+                },
+                max_health: {
+                    label: text.maxHealth,
+                    type: 'number',
+                    value: 20,
+                    min: 1,
+                    max: 2048,
+                    step: 1
+                },
+                movement_speed: {
+                    label: text.movementSpeed,
+                    type: 'number',
+                    value: 0.2,
+                    min: 0,
+                    max: 10,
+                    step: 0.01
+                },
+                follow_range: {
+                    label: text.followRange,
+                    type: 'number',
+                    value: 16,
+                    min: 0,
+                    max: 256,
+                    step: 1
+                },
+                attack_damage: {
+                    label: text.attackDamage,
+                    type: 'number',
+                    value: 2,
+                    min: 0,
+                    max: 2048,
+                    step: 0.5
+                },
+                armor: {
+                    label: text.armor,
+                    type: 'number',
+                    value: 0,
+                    min: 0,
+                    max: 2048,
+                    step: 0.5
+                },
+                knockback_resistance: {
+                    label: text.knockbackResistance,
+                    type: 'number',
+                    value: 0.2,
+                    min: 0,
+                    max: 1,
+                    step: 0.05
+                },
+                tracking_range: {
+                    label: text.trackingRange,
+                    type: 'number',
+                    value: 8,
+                    min: 1,
+                    max: 256,
+                    step: 1
+                },
+                update_interval: {
+                    label: text.updateInterval,
+                    type: 'number',
+                    value: 3,
+                    min: 1,
+                    max: 60,
+                    step: 1
+                },
+                ai_enabled: {
+                    label: text.aiEnabled,
+                    type: 'checkbox',
+                    value: true
+                },
+                ai_template: {
+                    label: text.aiTemplate,
+                    type: 'text',
+                    value: 'minecraft:zombie'
+                },
+                animation_transition: {
+                    label: text.animationTransition,
+                    type: 'checkbox',
+                    value: true
+                },
+                disable_vanilla_death_animation: {
+                    label: text.disableVanillaDeathAnimation,
+                    type: 'checkbox',
+                    value: true
+                },
+                translucent: {
+                    label: text.translucent,
+                    type: 'checkbox',
+                    value: true
+                },
+                show_in_moreblock_tab: {
+                    label: text.showInMoreBlockTab,
+                    type: 'checkbox',
+                    value: true
+                },
+                spawn_egg_primary_color: {
+                    label: text.spawnEggPrimaryColor,
+                    type: 'color',
+                    value: '#4b7cf0'
+                },
+                spawn_egg_secondary_color: {
+                    label: text.spawnEggSecondaryColor,
+                    type: 'color',
+                    value: '#d8e4ff'
+                },
+                include_animation_states: {
+                    label: text.includeAnimationStates,
+                    type: 'checkbox',
+                    value: true,
+                    description: text.includeAnimationStatesDescription
+                }
+            },
+            onConfirm(form) {
+                const latestText = getText();
+                const config = buildEntityConfig(form);
+                const content = JSON.stringify(config, null, 2) + '\n';
+                Blockbench.export({
+                    type: latestText.entityExportType,
+                    extensions: ['json'],
+                    name: `${config.id}.json`,
+                    content
+                }, path => {
+                    if (path) {
+                        Blockbench.showQuickMessage(latestText.entityExported);
+                    }
+                });
+            }
+        });
+        dialog.show();
+    }
+
     Plugin.register(PLUGIN_ID, {
         title: getText().pluginTitle,
         author: 'Sallos',
         icon: 'fa-cube',
         description: getText().pluginDescription,
-        version: '1.6.1',
+        version: '1.7.0',
         variant: 'both',
         min_version: '4.0.0',
         tags: ['Minecraft: Java Edition'],
@@ -900,6 +1263,13 @@ let moreblock_generate_hitbox_action;
                 category: 'file',
                 click: showExportDialog
             });
+            moreblock_export_entity_action = new Action('export_moreblock_entity_config_json', {
+                name: text.entityActionName,
+                description: text.entityActionDescription,
+                icon: 'fa-user',
+                category: 'file',
+                click: showEntityExportDialog
+            });
             moreblock_generate_hitbox_action = new Action('generate_moreblock_hitbox', {
                 name: text.hitboxActionName,
                 description: text.hitboxActionDescription,
@@ -908,12 +1278,17 @@ let moreblock_generate_hitbox_action;
                 click: showHitboxDialog
             });
             MenuBar.addAction(moreblock_export_action, 'file.export');
+            MenuBar.addAction(moreblock_export_entity_action, 'file.export');
             MenuBar.addAction(moreblock_generate_hitbox_action, 'filter');
         },
         onunload() {
             if (moreblock_export_action) {
                 moreblock_export_action.delete();
                 moreblock_export_action = null;
+            }
+            if (moreblock_export_entity_action) {
+                moreblock_export_entity_action.delete();
+                moreblock_export_entity_action = null;
             }
             if (moreblock_generate_hitbox_action) {
                 moreblock_generate_hitbox_action.delete();

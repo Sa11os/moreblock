@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -284,6 +285,36 @@ public final class ImportedEntityPacks {
         root.addProperty("update_interval", 3);
         root.addProperty("ai_enabled", true);
         root.addProperty("ai_template", "minecraft:zombie");
+        root.addProperty("animation_transition", true);
+        JsonObject animationStates = new JsonObject();
+        JsonObject idleStates = new JsonObject();
+        idleStates.addProperty("idle", 1.0d);
+        idleStates.addProperty("idle_1", 0.6d);
+        idleStates.addProperty("idle_2", 0.4d);
+        animationStates.add("idle", idleStates);
+        JsonObject walkStates = new JsonObject();
+        walkStates.addProperty("walk", 1.0d);
+        walkStates.addProperty("walk_1", 0.5d);
+        animationStates.add("walk", walkStates);
+        JsonObject runStates = new JsonObject();
+        runStates.addProperty("run", 1.0d);
+        animationStates.add("run", runStates);
+        JsonObject attackStates = new JsonObject();
+        attackStates.addProperty("attack", 1.0d);
+        attackStates.addProperty("attack_1", 0.8d);
+        animationStates.add("attack", attackStates);
+        JsonObject hurtStates = new JsonObject();
+        hurtStates.addProperty("hurt", 1.0d);
+        animationStates.add("hurt", hurtStates);
+        JsonObject spawnStates = new JsonObject();
+        spawnStates.addProperty("spawn", 1.0d);
+        animationStates.add("spawn", spawnStates);
+        JsonObject dieStates = new JsonObject();
+        dieStates.addProperty("die", 1.0d);
+        dieStates.addProperty("die_1", 0.6d);
+        animationStates.add("die", dieStates);
+        root.add("animation_states", animationStates);
+        root.addProperty("disable_vanilla_death_animation", true);
         root.addProperty("spawn_egg_primary_color", "#4b7cf0");
         root.addProperty("spawn_egg_secondary_color", "#d8e4ff");
         root.addProperty("show_in_moreblock_tab", true);
@@ -328,6 +359,57 @@ public final class ImportedEntityPacks {
                 动画文件名，可选。不填写时会使用内置默认 idle 动画。
 
                 示例：`example_entity.animation.json`
+
+                ## `animation_transition`
+
+                是否启用动作切换过渡。默认开启。关闭后动作切换会更直接，不做平滑衔接。
+
+                示例：`true`
+
+                ## `animation_states`
+
+                动画状态配置，可选。支持 `spawn`、`idle`、`walk`、`run`、`attack`、`hurt`、`die`。
+
+                如果动画文件里存在 `idle_1`、`idle_2` 这种命名，系统会自动按前缀识别为同一状态的不同动作；这里可以继续手动填写权重，控制随机播放概率。
+
+                示例：
+
+                ```json
+                {
+                  "idle": {
+                    "idle": 1.0,
+                    "idle_1": 0.6,
+                    "idle_2": 0.4
+                  },
+                  "walk": {
+                    "walk": 1.0,
+                    "walk_1": 0.5
+                  },
+                  "run": {
+                    "run": 1.0
+                  },
+                  "attack": {
+                    "attack": 1.0,
+                    "attack_1": 0.8
+                  },
+                  "hurt": {
+                    "hurt": 1.0
+                  },
+                  "spawn": {
+                    "spawn": 1.0
+                  },
+                  "die": {
+                    "die": 1.0,
+                    "die_1": 0.6
+                  }
+                }
+                ```
+
+                ## `disable_vanilla_death_animation`
+
+                是否禁用原版死亡翻转效果。若当前实体存在 `die` 动画，默认会禁用；如果没有 `die` 动画，默认保持原版效果开启。
+
+                示例：`true`
 
                 ## `width`
 
@@ -498,6 +580,11 @@ public final class ImportedEntityPacks {
                 return;
             }
 
+            AnimationProfile animationProfile = resolveAnimationProfile(animationSource, packConfig.animationOverrides());
+            boolean disableVanillaDeathAnimation = resolveDisableVanillaDeathAnimation(
+                    packConfig.disableVanillaDeathAnimation(),
+                    animationProfile
+            );
             String registryName = allocateRegistryName(firstNonBlank(packConfig.id(), folderName));
             Definition definition = new Definition(
                     Moreblock.MODID,
@@ -524,6 +611,8 @@ public final class ImportedEntityPacks {
                     resolveUpdateInterval(packConfig.updateInterval()),
                     resolveAiEnabled(packConfig.aiEnabled()),
                     resolveAiTemplate(packConfig.aiTemplate()),
+                    resolveAnimationTransition(packConfig.animationTransition()),
+                    disableVanillaDeathAnimation,
                     resolveColor(packConfig.spawnEggPrimaryColor(), 0x4b7cf0),
                     resolveColor(packConfig.spawnEggSecondaryColor(), 0xd8e4ff),
                     resolveShowInMoreBlockTab(packConfig.showInMoreBlockTab()),
@@ -532,7 +621,8 @@ public final class ImportedEntityPacks {
                     animationSource == null
                             ? ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "animations/entity/" + DYNAMIC_ANIMATION_NAME)
                             : ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "animations/entity/" + registryName + ".animation.json"),
-                    ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "textures/entity/" + registryName + "/texture.png")
+                    ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "textures/entity/" + registryName + "/texture.png"),
+                    animationProfile
             );
             DEFINITIONS.add(definition);
             DEFINITIONS_BY_KEY.put(registryName, definition);
@@ -590,6 +680,9 @@ public final class ImportedEntityPacks {
                     getOptionalInt(root, "update_interval", "updateInterval"),
                     getOptionalBoolean(root, "ai_enabled", "aiEnabled"),
                     getOptionalString(root, "ai_template", "aiTemplate", "vanilla_ai", "vanillaAi", "brain_template", "brainTemplate"),
+                    getOptionalBoolean(root, "animation_transition", "animationTransition", "enable_animation_transition", "enableAnimationTransition"),
+                    getAnimationOverrides(root),
+                    getOptionalBoolean(root, "disable_vanilla_death_animation", "disableVanillaDeathAnimation", "disable_death_flip", "disableDeathFlip"),
                     getOptionalString(root, "spawn_egg_primary_color", "egg_primary_color", "spawnEggPrimaryColor"),
                     getOptionalString(root, "spawn_egg_secondary_color", "egg_secondary_color", "spawnEggSecondaryColor"),
                     getOptionalBoolean(root, "show_in_moreblock_tab", "showInMoreBlockTab"),
@@ -663,6 +756,150 @@ public final class ImportedEntityPacks {
 
     private static Path resolveTextureSource(Path packDirectory, PackConfig packConfig) {
         return packDirectory.resolve(firstNonBlank(packConfig.textureFile(), "texture.png"));
+    }
+
+    private static AnimationProfile resolveAnimationProfile(Path animationSource, AnimationOverrides overrides) {
+        if (animationSource == null || !Files.isRegularFile(animationSource)) {
+            return AnimationProfile.defaultProfile();
+        }
+
+        try (Reader reader = Files.newBufferedReader(animationSource, StandardCharsets.UTF_8)) {
+            JsonElement element = JsonParser.parseReader(reader);
+            if (!element.isJsonObject()) {
+                return AnimationProfile.defaultProfile();
+            }
+
+            JsonObject animationsRoot = getObject(element.getAsJsonObject(), "animations");
+            if (animationsRoot == null || animationsRoot.entrySet().isEmpty()) {
+                return AnimationProfile.defaultProfile();
+            }
+
+            EnumMap<EntityAnimationState, List<AnimationOption>> detected = new EnumMap<>(EntityAnimationState.class);
+            for (Map.Entry<String, JsonElement> entry : animationsRoot.entrySet()) {
+                EntityAnimationState animationState = resolveAnimationState(entry.getKey());
+                if (animationState == null) {
+                    continue;
+                }
+
+                JsonObject animationObject = entry.getValue().isJsonObject() ? entry.getValue().getAsJsonObject() : null;
+                detected.computeIfAbsent(animationState, ignored -> new ArrayList<>()).add(new AnimationOption(
+                        entry.getKey(),
+                        1.0d,
+                        resolveAnimationDurationTicks(animationObject),
+                        resolveAnimationPlayback(animationState, animationObject)
+                ));
+            }
+
+            if (detected.isEmpty()) {
+                return AnimationProfile.defaultProfile();
+            }
+
+            if (overrides != null) {
+                for (EntityAnimationState state : EntityAnimationState.values()) {
+                    Map<String, Double> configuredWeights = overrides.weightsFor(state);
+                    if (configuredWeights.isEmpty()) {
+                        continue;
+                    }
+
+                    List<AnimationOption> autoOptions = detected.getOrDefault(state, List.of());
+                    List<AnimationOption> configuredOptions = new ArrayList<>();
+                    for (Map.Entry<String, Double> weightEntry : configuredWeights.entrySet()) {
+                        if (weightEntry.getValue() == null || weightEntry.getValue() <= 0.0d) {
+                            continue;
+                        }
+
+                        AnimationOption matchedOption = findAnimationOption(autoOptions, weightEntry.getKey());
+                        if (matchedOption == null) {
+                            Moreblock.LOGGER.warn("导入实体动画权重配置引用了不存在的动作: state={}, animation={}", state.configKey(), weightEntry.getKey());
+                            continue;
+                        }
+
+                        configuredOptions.add(new AnimationOption(
+                                matchedOption.animationName(),
+                                weightEntry.getValue(),
+                                matchedOption.durationTicks(),
+                                matchedOption.playback()
+                        ));
+                    }
+
+                    if (!configuredOptions.isEmpty()) {
+                        detected.put(state, configuredOptions);
+                    }
+                }
+            }
+
+            return new AnimationProfile(detected);
+        } catch (Exception exception) {
+            Moreblock.LOGGER.warn("读取导入实体动画配置失败，已回退到默认 idle 动画: {}", animationSource, exception);
+            return AnimationProfile.defaultProfile();
+        }
+    }
+
+    private static AnimationOption findAnimationOption(List<AnimationOption> options, String animationName) {
+        for (AnimationOption option : options) {
+            if (option.animationName().equals(animationName)) {
+                return option;
+            }
+        }
+        for (AnimationOption option : options) {
+            if (option.animationName().equalsIgnoreCase(animationName)) {
+                return option;
+            }
+        }
+        return null;
+    }
+
+    private static EntityAnimationState resolveAnimationState(String animationName) {
+        String normalized = animationName == null ? "" : animationName.trim().toLowerCase(Locale.ROOT);
+        if (normalized.equals("spawn") || normalized.startsWith("spawn_")) {
+            return EntityAnimationState.SPAWN;
+        }
+        if (normalized.equals("idle") || normalized.startsWith("idle_")) {
+            return EntityAnimationState.IDLE;
+        }
+        if (normalized.equals("walk") || normalized.startsWith("walk_")) {
+            return EntityAnimationState.WALK;
+        }
+        if (normalized.equals("run") || normalized.startsWith("run_")) {
+            return EntityAnimationState.RUN;
+        }
+        if (normalized.equals("attack") || normalized.startsWith("attack_")) {
+            return EntityAnimationState.ATTACK;
+        }
+        if (normalized.equals("hurt") || normalized.startsWith("hurt_") || normalized.equals("hit") || normalized.startsWith("hit_")) {
+            return EntityAnimationState.HURT;
+        }
+        if (normalized.equals("die") || normalized.startsWith("die_") || normalized.equals("death") || normalized.startsWith("death_")) {
+            return EntityAnimationState.DIE;
+        }
+        return null;
+    }
+
+    private static int resolveAnimationDurationTicks(JsonObject animationObject) {
+        if (animationObject != null && animationObject.has("animation_length")) {
+            try {
+                double seconds = Math.max(0.05d, animationObject.get("animation_length").getAsDouble());
+                return Math.max(1, Math.min(20 * 60, (int) Math.round(seconds * 20.0d)));
+            } catch (Exception ignored) {
+            }
+        }
+        return 20;
+    }
+
+    private static AnimationPlayback resolveAnimationPlayback(EntityAnimationState state, JsonObject animationObject) {
+        if (state == EntityAnimationState.IDLE || state == EntityAnimationState.WALK) {
+            return AnimationPlayback.LOOP;
+        }
+        if (animationObject != null && animationObject.has("loop")) {
+            try {
+                JsonElement loopElement = animationObject.get("loop");
+                if (loopElement.isJsonPrimitive() && loopElement.getAsJsonPrimitive().isBoolean() && loopElement.getAsBoolean()) {
+                    return AnimationPlayback.LOOP;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return AnimationPlayback.PLAY_ONCE;
     }
 
     private static boolean isZipPackFile(Path path) {
@@ -841,6 +1078,8 @@ public final class ImportedEntityPacks {
         for (Definition definition : DEFINITIONS) {
             zhCn.addProperty(definition.translationKey(), definition.zhCnName());
             enUs.addProperty(definition.translationKey(), definition.enUsName());
+            zhCn.addProperty(definition.spawnEggTranslationKey(), definition.spawnEggZhCnName());
+            enUs.addProperty(definition.spawnEggTranslationKey(), definition.spawnEggEnUsName());
         }
 
         writeJson(langRoot.resolve("zh_cn.json"), zhCn);
@@ -970,6 +1209,50 @@ public final class ImportedEntityPacks {
             return root.getAsJsonObject(key);
         }
         return null;
+    }
+
+    private static AnimationOverrides getAnimationOverrides(JsonObject root) {
+        JsonObject overridesObject = getObject(root, "animation_states", "animationStates", "animation_weights", "animationWeights");
+        if (overridesObject == null) {
+            return null;
+        }
+
+        EnumMap<EntityAnimationState, Map<String, Double>> weightsByState = new EnumMap<>(EntityAnimationState.class);
+        readAnimationStateOverrides(overridesObject, weightsByState, EntityAnimationState.SPAWN, "spawn");
+        readAnimationStateOverrides(overridesObject, weightsByState, EntityAnimationState.IDLE, "idle");
+        readAnimationStateOverrides(overridesObject, weightsByState, EntityAnimationState.WALK, "walk");
+        readAnimationStateOverrides(overridesObject, weightsByState, EntityAnimationState.RUN, "run");
+        readAnimationStateOverrides(overridesObject, weightsByState, EntityAnimationState.ATTACK, "attack");
+        readAnimationStateOverrides(overridesObject, weightsByState, EntityAnimationState.HURT, "hurt", "hit");
+        readAnimationStateOverrides(overridesObject, weightsByState, EntityAnimationState.DIE, "die", "death");
+        return weightsByState.isEmpty() ? null : new AnimationOverrides(weightsByState);
+    }
+
+    private static void readAnimationStateOverrides(
+            JsonObject root,
+            EnumMap<EntityAnimationState, Map<String, Double>> weightsByState,
+            EntityAnimationState state,
+            String... keys
+    ) {
+        JsonObject stateObject = getObject(root, keys);
+        if (stateObject == null || stateObject.entrySet().isEmpty()) {
+            return;
+        }
+
+        LinkedHashMap<String, Double> weights = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : stateObject.entrySet()) {
+            try {
+                double weight = entry.getValue().getAsDouble();
+                if (weight > 0.0d) {
+                    weights.put(entry.getKey(), weight);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (!weights.isEmpty()) {
+            weightsByState.put(state, Map.copyOf(weights));
+        }
     }
 
     private static String getOptionalString(JsonObject root, String... keys) {
@@ -1108,6 +1391,17 @@ public final class ImportedEntityPacks {
         return null;
     }
 
+    private static boolean resolveAnimationTransition(Boolean configuredValue) {
+        return configuredValue == null || configuredValue;
+    }
+
+    private static boolean resolveDisableVanillaDeathAnimation(Boolean configuredValue, AnimationProfile animationProfile) {
+        if (configuredValue != null) {
+            return configuredValue;
+        }
+        return animationProfile != null && animationProfile.hasState(EntityAnimationState.DIE);
+    }
+
     private static int resolveColor(String configuredColor, int fallbackColor) {
         if (!isPresent(configuredColor)) {
             return fallbackColor;
@@ -1201,13 +1495,16 @@ public final class ImportedEntityPacks {
             int updateInterval,
             boolean aiEnabled,
             ResourceLocation aiTemplate,
+            boolean animationTransition,
+            boolean disableVanillaDeathAnimation,
             int eggPrimaryColor,
             int eggSecondaryColor,
             boolean showInMoreBlockTab,
             boolean translucent,
             ResourceLocation geoLocation,
             ResourceLocation animationLocation,
-            ResourceLocation textureLocation
+            ResourceLocation textureLocation,
+            AnimationProfile animationProfile
     ) {
         public String displayName() {
             return firstNonBlank(zhCnName, enUsName, sourceFolderName, registryName);
@@ -1219,6 +1516,18 @@ public final class ImportedEntityPacks {
 
         public String spawnEggRegistryName() {
             return registryName + "_spawn_egg";
+        }
+
+        public String spawnEggTranslationKey() {
+            return "item." + ownerModId + "." + spawnEggRegistryName();
+        }
+
+        public String spawnEggZhCnName() {
+            return displayName() + "刷怪蛋";
+        }
+
+        public String spawnEggEnUsName() {
+            return firstNonBlank(enUsName, zhCnName, registryName) + " Spawn Egg";
         }
     }
 
@@ -1243,13 +1552,103 @@ public final class ImportedEntityPacks {
             Integer updateInterval,
             Boolean aiEnabled,
             String aiTemplate,
+            Boolean animationTransition,
+            AnimationOverrides animationOverrides,
+            Boolean disableVanillaDeathAnimation,
             String spawnEggPrimaryColor,
             String spawnEggSecondaryColor,
             Boolean showInMoreBlockTab,
             Boolean translucent
     ) {
         private static PackConfig legacy() {
-            return new PackConfig(null, null, null, null, null, null, "texture.png", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+            return new PackConfig(null, null, null, null, null, null, "texture.png", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        }
+    }
+
+    public enum EntityAnimationState {
+        SPAWN("spawn"),
+        IDLE("idle"),
+        WALK("walk"),
+        RUN("run"),
+        ATTACK("attack"),
+        HURT("hurt"),
+        DIE("die");
+
+        private final String configKey;
+
+        EntityAnimationState(String configKey) {
+            this.configKey = configKey;
+        }
+
+        public String configKey() {
+            return configKey;
+        }
+    }
+
+    public enum AnimationPlayback {
+        LOOP,
+        PLAY_ONCE
+    }
+
+    public record AnimationOption(
+            String animationName,
+            double weight,
+            int durationTicks,
+            AnimationPlayback playback
+    ) {
+    }
+
+    public record AnimationProfile(Map<EntityAnimationState, List<AnimationOption>> optionsByState) {
+        public AnimationProfile {
+            EnumMap<EntityAnimationState, List<AnimationOption>> normalized = new EnumMap<>(EntityAnimationState.class);
+            if (optionsByState != null) {
+                for (Map.Entry<EntityAnimationState, List<AnimationOption>> entry : optionsByState.entrySet()) {
+                    if (entry.getKey() == null || entry.getValue() == null || entry.getValue().isEmpty()) {
+                        continue;
+                    }
+                    normalized.put(entry.getKey(), List.copyOf(entry.getValue()));
+                }
+            }
+            optionsByState = Map.copyOf(normalized);
+        }
+
+        public static AnimationProfile defaultProfile() {
+            return new AnimationProfile(Map.of(
+                    EntityAnimationState.IDLE,
+                    List.of(new AnimationOption("animation.imported_entity.idle", 1.0d, 20, AnimationPlayback.LOOP))
+            ));
+        }
+
+        public boolean hasState(EntityAnimationState state) {
+            List<AnimationOption> direct = optionsByState.get(state);
+            return direct != null && !direct.isEmpty();
+        }
+
+        public List<AnimationOption> optionsFor(EntityAnimationState state) {
+            List<AnimationOption> direct = optionsByState.get(state);
+            if (direct != null && !direct.isEmpty()) {
+                return direct;
+            }
+            if (state == EntityAnimationState.RUN) {
+                List<AnimationOption> walk = optionsByState.get(EntityAnimationState.WALK);
+                if (walk != null && !walk.isEmpty()) {
+                    return walk;
+                }
+            }
+            if (state == EntityAnimationState.SPAWN || state == EntityAnimationState.WALK || state == EntityAnimationState.ATTACK
+                    || state == EntityAnimationState.HURT || state == EntityAnimationState.DIE) {
+                List<AnimationOption> idle = optionsByState.get(EntityAnimationState.IDLE);
+                if (idle != null && !idle.isEmpty()) {
+                    return idle;
+                }
+            }
+            return List.of();
+        }
+    }
+
+    private record AnimationOverrides(Map<EntityAnimationState, Map<String, Double>> weightsByState) {
+        private Map<String, Double> weightsFor(EntityAnimationState state) {
+            return weightsByState == null ? Map.of() : weightsByState.getOrDefault(state, Map.of());
         }
     }
 
