@@ -523,6 +523,15 @@ public final class ImportedBlockPacks {
                 return;
             }
 
+            GeoValidation geoValidation = validateGeoForRuntime(geoSource);
+            if (!geoValidation.valid()) {
+                Moreblock.LOGGER.warn("跳过配置方块目录 {}，模型文件 {} 不可用：{}",
+                        packDirectory,
+                        geoSource.getFileName(),
+                        geoValidation.reason());
+                return;
+            }
+
             String registryName = allocateRegistryName(firstNonBlank(packConfig.id(), folderName));
 
             GeoInspection inspection = inspectGeo(geoSource);
@@ -573,9 +582,9 @@ public final class ImportedBlockPacks {
                     ResourceLocation.fromNamespaceAndPath(Moreblock.MODID, "models/item/" + registryName + ".json")
             );
 
+            writeGeneratedAssets(definition);
             DEFINITIONS.add(definition);
             DEFINITIONS_BY_KEY.put(registryName, definition);
-            writeGeneratedAssets(definition);
         } catch (Exception exception) {
             Moreblock.LOGGER.error("导入配置方块失败: {}", packDirectory, exception);
         }
@@ -879,6 +888,57 @@ public final class ImportedBlockPacks {
                 }
             }
             return hitboxBoneName == null ? GeoInspection.none() : GeoInspection.hitbox(hitboxBoneName);
+        }
+    }
+
+    private static GeoValidation validateGeoForRuntime(Path geoSource) throws IOException {
+        try (Reader reader = Files.newBufferedReader(geoSource, StandardCharsets.UTF_8)) {
+            JsonElement element = JsonParser.parseReader(reader);
+            if (!element.isJsonObject()) {
+                return GeoValidation.failed("根节点不是 JSON 对象");
+            }
+
+            JsonObject root = element.getAsJsonObject();
+            if (root.has("meta") && root.get("meta").isJsonObject()) {
+                JsonObject meta = root.getAsJsonObject("meta");
+                if (meta.has("model_format")) {
+                    return GeoValidation.failed("检测到 Blockbench 工程文件，请先导出 GeckoLib geo.json");
+                }
+            }
+
+            if (!root.has("format_version")) {
+                return GeoValidation.failed("缺少 format_version");
+            }
+
+            String formatVersion;
+            try {
+                formatVersion = root.get("format_version").getAsString();
+            } catch (Exception exception) {
+                return GeoValidation.failed("format_version 不是字符串");
+            }
+
+            if (!Objects.equals(formatVersion, "1.12.0")) {
+                return GeoValidation.failed("format_version=" + formatVersion + "，当前仅支持 1.12.0");
+            }
+
+            JsonArray geometries = root.getAsJsonArray("minecraft:geometry");
+            if (geometries == null || geometries.size() == 0) {
+                return GeoValidation.failed("缺少 minecraft:geometry");
+            }
+
+            JsonElement geometryElement = geometries.get(0);
+            if (!geometryElement.isJsonObject()) {
+                return GeoValidation.failed("minecraft:geometry[0] 不是对象");
+            }
+
+            JsonArray bones = geometryElement.getAsJsonObject().getAsJsonArray("bones");
+            if (bones == null || bones.size() == 0) {
+                return GeoValidation.failed("缺少 bones");
+            }
+
+            return GeoValidation.ok();
+        } catch (Exception exception) {
+            return GeoValidation.failed("解析失败: " + firstNonBlank(exception.getMessage(), exception.getClass().getSimpleName()));
         }
     }
 
@@ -1375,6 +1435,16 @@ public final class ImportedBlockPacks {
 
         private boolean hasHitboxBone() {
             return isPresent(hitboxBoneName);
+        }
+    }
+
+    private record GeoValidation(boolean valid, String reason) {
+        private static GeoValidation ok() {
+            return new GeoValidation(true, null);
+        }
+
+        private static GeoValidation failed(String reason) {
+            return new GeoValidation(false, firstNonBlank(reason, "未知原因"));
         }
     }
 
