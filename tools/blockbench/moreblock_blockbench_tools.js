@@ -1,6 +1,7 @@
 let moreblock_export_action;
 let moreblock_export_entity_action;
 let moreblock_generate_hitbox_action;
+let moreblock_ai_settings_action;
 
 (function() {
     const PLUGIN_ID = 'moreblock_blockbench_tools';
@@ -43,7 +44,7 @@ let moreblock_generate_hitbox_action;
             spawnEggSecondaryColor: '刷怪蛋副色',
             includeAnimationStates: '附带动画状态模板',
             includeAnimationStatesDescription: '勾选后会写入 `animation_states` 示例，方便直接按 idle、walk、attack、die 命名继续改。',
-            exportZipPackage: '导出 ZIP 导入包',
+            exportZipPackage: '导出为 ZIP 压缩包',
             exportZipPackageDescription: '勾选后会把配置文件和当前项目目录中能找到的 geo、贴图、display、animation 一起打包成 MoreBlock 可直接导入的 ZIP。',
             exportType: 'MoreBlock 配置 JSON',
             entityExportType: 'MoreBlock 实体配置 JSON',
@@ -79,10 +80,41 @@ let moreblock_generate_hitbox_action;
             hitboxGenerated: 'MoreBlock hitbox 已生成',
             hitboxGeneratedWithCount: count => `MoreBlock hitbox 已生成：${count} 个盒子`,
             noModelCubes: '当前模型没有可用于计算 hitbox 的方块',
+            hitboxTextureMissing: '当前项目没有可用贴图，hitbox 无法自动绑定透明像素，导出后仍可能显示异常',
+            hitboxTextureReserved: '已为 hitbox 预留透明像素，避免导出后贴图覆盖',
             defaultChineseName: '自定义方块',
             defaultEnglishName: 'Custom Block',
             defaultEntityChineseName: '自定义实体',
-            defaultEntityEnglishName: 'Custom Entity'
+            defaultEntityEnglishName: 'Custom Entity',
+            aiSettingsActionName: 'MoreBlock AI 设置',
+            aiSettingsActionDescription: '配置 MoreBlock 导出时使用的 AI 接口',
+            aiSettingsDialogTitle: 'MoreBlock AI 设置',
+            aiBaseUrl: 'AI 接口 URL',
+            aiApiKey: 'AI API Key',
+            aiModel: 'AI 模型',
+            aiTimeoutSeconds: 'AI 超时秒数',
+            aiTimeoutSecondsDescription: '请求超过该时长后会自动中止当前 AI 填写。默认 30 秒，范围 5-300 秒。',
+            aiPlaintextWarning: '提示：API Key 会以明文保存在当前 Blockbench 的本地配置中，请妥善保管密钥，不要在共享设备上保存生产密钥。',
+            aiSettingsHelp: '使用 OpenAI 兼容接口。DeepSeek 常见填写示例：URL 可填 `https://api.deepseek.com/v1`，模型可填 `deepseek-chat`。',
+            aiSettingsSaved: 'MoreBlock AI 设置已保存',
+            aiSettingsMissingTitle: '请先配置 MoreBlock AI',
+            aiSettingsMissingMessage: 'AI 填写需要先在插件设置里填写接口 URL、API Key，以及可选模型名。',
+            aiFillButton: 'AI 填写',
+            aiSettingsButton: 'AI 设置',
+            aiFillHint: 'AI 只会优先补全空值或默认值；明确填写过的字段会尽量保持不变。',
+            aiFilling: 'AI 正在分析已填写字段并补全缺省项，请稍候...',
+            aiFillSuccess: fields => `AI 已补全字段：${fields}`,
+            aiFillNoChangesTitle: 'AI 未补全任何字段',
+            aiFillNoChangesMessage: 'AI 没有找到可以可靠补全的字段。可能是当前表单已经完整，或现有信息不足以安全推断。',
+            aiFillErrorTitle: 'AI 填写失败',
+            aiFillErrorMessage: detail => `AI 请求失败：${detail}`,
+            aiTimeoutMessage: seconds => `AI 请求超时（${seconds} 秒）`,
+            aiResponseInvalid: 'AI 返回内容无法解析为有效 JSON',
+            aiNoChoices: 'AI 没有返回可用结果',
+            aiProgressTitle: 'AI 填写中',
+            aiProgressMessage: 'AI 正在分析当前表单并填写缺省参数，请稍候...',
+            aiProgressTimeout: seconds => `当前超时设置：${seconds} 秒`,
+            aiProgressLockedHint: '填写进行中，当前导出表单已临时锁定，完成或异常结束前无法修改参数。'
         },
         en: {
             dialogTitle: 'Export MoreBlock Config JSON',
@@ -158,10 +190,41 @@ let moreblock_generate_hitbox_action;
             hitboxGenerated: 'MoreBlock hitbox generated',
             hitboxGeneratedWithCount: count => `MoreBlock hitbox generated: ${count} boxes`,
             noModelCubes: 'No model cubes are available for hitbox calculation',
+            hitboxTextureMissing: 'No project texture is available. Hitbox cubes cannot bind to a transparent pixel automatically, so exported rendering may still be incorrect.',
+            hitboxTextureReserved: 'Reserved a transparent texture pixel for hitbox cubes to prevent texture bleed after export',
             defaultChineseName: '自定义方块',
             defaultEnglishName: 'Custom Block',
             defaultEntityChineseName: 'Custom Entity',
-            defaultEntityEnglishName: 'Custom Entity'
+            defaultEntityEnglishName: 'Custom Entity',
+            aiSettingsActionName: 'MoreBlock AI Settings',
+            aiSettingsActionDescription: 'Configure the AI endpoint used by MoreBlock export',
+            aiSettingsDialogTitle: 'MoreBlock AI Settings',
+            aiBaseUrl: 'AI Endpoint URL',
+            aiApiKey: 'AI API Key',
+            aiModel: 'AI Model',
+            aiTimeoutSeconds: 'AI Timeout Seconds',
+            aiTimeoutSecondsDescription: 'Automatically stops the current AI fill request after this duration. Default 30 seconds, range 5-300.',
+            aiPlaintextWarning: 'Warning: The API key is stored in plain text in the current Blockbench local configuration. Keep it safe and avoid saving production keys on shared devices.',
+            aiSettingsHelp: 'Uses an OpenAI-compatible API. Common DeepSeek example: URL `https://api.deepseek.com/v1`, model `deepseek-chat`.',
+            aiSettingsSaved: 'MoreBlock AI settings saved',
+            aiSettingsMissingTitle: 'Configure MoreBlock AI First',
+            aiSettingsMissingMessage: 'AI fill requires an endpoint URL, API key, and optionally a model name in the plugin settings.',
+            aiFillButton: 'AI Fill',
+            aiSettingsButton: 'AI Settings',
+            aiFillHint: 'AI mainly fills empty or default values and tries to keep explicitly entered fields unchanged.',
+            aiFilling: 'AI is analyzing filled fields and completing missing values...',
+            aiFillSuccess: fields => `AI filled: ${fields}`,
+            aiFillNoChangesTitle: 'AI Did Not Fill Anything',
+            aiFillNoChangesMessage: 'AI could not find any fields it could fill reliably. The form may already be complete, or the available context is insufficient.',
+            aiFillErrorTitle: 'AI Fill Failed',
+            aiFillErrorMessage: detail => `AI request failed: ${detail}`,
+            aiTimeoutMessage: seconds => `AI request timed out (${seconds}s)`,
+            aiResponseInvalid: 'AI response is not valid JSON',
+            aiNoChoices: 'AI returned no usable result',
+            aiProgressTitle: 'AI Filling',
+            aiProgressMessage: 'AI is analyzing the current form and filling missing values...',
+            aiProgressTimeout: seconds => `Current timeout: ${seconds}s`,
+            aiProgressLockedHint: 'The export form is temporarily locked while AI fill is running. Parameters cannot be edited until completion or failure.'
         }
     };
 
@@ -261,6 +324,572 @@ let moreblock_generate_hitbox_action;
             return Project.save_path;
         }
         return '';
+    }
+
+    const AI_SETTINGS_STORAGE_KEY = `${PLUGIN_ID}:ai_settings`;
+    const AI_DEFAULT_SETTINGS = {
+        base_url: 'https://api.deepseek.com/v1',
+        api_key: '',
+        model: 'deepseek-chat',
+        timeout_seconds: 30
+    };
+
+    function getLocalStorage() {
+        if (typeof localStorage !== 'undefined' && localStorage) {
+            return localStorage;
+        }
+        return null;
+    }
+
+    function loadAiSettings() {
+        const storage = getLocalStorage();
+        if (!storage) {
+            return Object.assign({}, AI_DEFAULT_SETTINGS);
+        }
+        const saved = parseJsonSafe(storage.getItem(AI_SETTINGS_STORAGE_KEY));
+        if (!saved || typeof saved !== 'object') {
+            return Object.assign({}, AI_DEFAULT_SETTINGS);
+        }
+        return {
+            base_url: String(saved.base_url || AI_DEFAULT_SETTINGS.base_url).trim() || AI_DEFAULT_SETTINGS.base_url,
+            api_key: String(saved.api_key || '').trim(),
+            model: String(saved.model || AI_DEFAULT_SETTINGS.model).trim() || AI_DEFAULT_SETTINGS.model,
+            timeout_seconds: clampAiTimeoutSeconds(saved.timeout_seconds)
+        };
+    }
+
+    function saveAiSettings(settings) {
+        const storage = getLocalStorage();
+        if (!storage) {
+            return;
+        }
+        const payload = {
+            base_url: String(settings.base_url || '').trim(),
+            api_key: String(settings.api_key || '').trim(),
+            model: String(settings.model || '').trim() || AI_DEFAULT_SETTINGS.model,
+            timeout_seconds: clampAiTimeoutSeconds(settings.timeout_seconds)
+        };
+        storage.setItem(AI_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function clampAiTimeoutSeconds(value) {
+        const numeric = Number.parseInt(value, 10);
+        if (!Number.isFinite(numeric)) {
+            return AI_DEFAULT_SETTINGS.timeout_seconds;
+        }
+        return Math.max(5, Math.min(300, numeric));
+    }
+
+    function showMessage(title, message, icon = 'info') {
+        if (typeof Blockbench !== 'undefined' && Blockbench && typeof Blockbench.showMessageBox === 'function') {
+            Blockbench.showMessageBox({
+                title,
+                message,
+                icon
+            });
+            return;
+        }
+        if (typeof Blockbench !== 'undefined' && Blockbench && typeof Blockbench.showQuickMessage === 'function') {
+            Blockbench.showQuickMessage(message, 4000);
+        }
+    }
+
+    function normalizeOpenAiEndpoint(baseUrl) {
+        const clean = String(baseUrl || '').trim().replace(/\/+$/, '');
+        if (!clean) {
+            return '';
+        }
+        return /\/chat\/completions$/i.test(clean) ? clean : `${clean}/chat/completions`;
+    }
+
+    function getDialogElement(dialogId) {
+        if (!dialogId || typeof document === 'undefined' || !document) {
+            return null;
+        }
+        return document.querySelector(`dialog#${dialogId}`);
+    }
+
+    function setDialogLocked(dialogId, locked) {
+        const element = getDialogElement(dialogId);
+        if (!element) {
+            return;
+        }
+        element.querySelectorAll('input, select, textarea, button').forEach(control => {
+            if (locked) {
+                control.dataset.moreblockAiPrevDisabled = control.disabled ? '1' : '0';
+                control.disabled = true;
+            } else {
+                const previous = control.dataset.moreblockAiPrevDisabled;
+                if (previous === '0') {
+                    control.disabled = false;
+                }
+                delete control.dataset.moreblockAiPrevDisabled;
+            }
+        });
+        if (locked) {
+            element.classList.add('moreblock_ai_locked');
+        } else {
+            element.classList.remove('moreblock_ai_locked');
+        }
+    }
+
+    function createAiProgressDialog(timeoutSeconds) {
+        const text = getText();
+        return new Dialog({
+            id: 'moreblock_ai_progress_dialog',
+            title: text.aiProgressTitle,
+            width: 420,
+            buttons: [],
+            lines: [`
+                <style>
+                    dialog#moreblock_ai_progress_dialog .dialog_content {
+                        text-align: left;
+                    }
+                    dialog#moreblock_ai_progress_dialog .moreblock_ai_progress_box {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 10px;
+                        padding: 6px 0;
+                        line-height: 1.6;
+                    }
+                    dialog#moreblock_ai_progress_dialog .moreblock_ai_progress_title {
+                        font-weight: 600;
+                    }
+                    dialog#moreblock_ai_progress_dialog .moreblock_ai_progress_hint {
+                        opacity: 0.85;
+                        font-size: 0.95em;
+                    }
+                </style>
+                <div class="moreblock_ai_progress_box">
+                    <div class="moreblock_ai_progress_title">${text.aiProgressMessage}</div>
+                    <div>${text.aiProgressTimeout(timeoutSeconds)}</div>
+                    <div class="moreblock_ai_progress_hint">${text.aiProgressLockedHint}</div>
+                </div>
+            `],
+            onCancel() {
+                return false;
+            }
+        });
+    }
+
+    async function withTimeout(promise, timeoutMs, timeoutMessage) {
+        let timer = null;
+        try {
+            return await Promise.race([
+                promise,
+                new Promise((_, reject) => {
+                    timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+                })
+            ]);
+        } finally {
+            if (timer) {
+                clearTimeout(timer);
+            }
+        }
+    }
+
+    function getDialogDefaultValues(type) {
+        const text = getText();
+        const baseName = getProjectBaseName();
+        if (type === 'entity') {
+            const metrics = getSuggestedEntityMetrics();
+            return {
+                id: sanitizeId(baseName, 'custom_entity'),
+                zh_cn: baseName === 'custom_block' ? text.defaultEntityChineseName : baseName,
+                en_us: text.defaultEntityEnglishName,
+                geo: getDefaultGeoFile(),
+                texture: 'texture.png',
+                animation: getDefaultAnimationFile(),
+                width: metrics.width,
+                height: metrics.height,
+                eye_height: metrics.eyeHeight,
+                max_health: 20,
+                movement_speed: 0.2,
+                follow_range: 16,
+                attack_damage: 2,
+                armor: 0,
+                knockback_resistance: 0.2,
+                tracking_range: 8,
+                update_interval: 3,
+                ai_enabled: true,
+                ai_template: 'minecraft:zombie',
+                animation_transition: true,
+                disable_vanilla_death_animation: true,
+                translucent: true,
+                show_in_moreblock_tab: true,
+                spawn_egg_primary_color: '#4b7cf0',
+                spawn_egg_secondary_color: '#d8e4ff',
+                include_animation_states: true,
+                export_zip_package: true
+            };
+        }
+        return {
+            id: sanitizeId(baseName),
+            zh_cn: baseName === 'custom_block' ? text.defaultChineseName : baseName,
+            en_us: text.defaultEnglishName,
+            geo: getDefaultGeoFile(),
+            texture: 'texture.png',
+            display: '',
+            export_zip_package: true,
+            light_level: 0,
+            supports_sitting: false,
+            seat_height: 0.5,
+            supports_lying: false,
+            lying_height: 0.5
+        };
+    }
+
+    function getAiFieldMeta(type) {
+        const text = getText();
+        if (type === 'entity') {
+            return {
+                id: {label: text.entityId, type: 'id'},
+                zh_cn: {label: text.chineseName, type: 'string'},
+                en_us: {label: text.englishName, type: 'string'},
+                geo: {label: text.geoFile, type: 'string'},
+                texture: {label: text.textureFile, type: 'string'},
+                animation: {label: text.animationFile, type: 'string'},
+                width: {label: text.entityWidth, type: 'number', min: 0.1, max: 64},
+                height: {label: text.entityHeight, type: 'number', min: 0.1, max: 64},
+                eye_height: {label: text.eyeHeight, type: 'number', min: 0.05, max: 64},
+                max_health: {label: text.maxHealth, type: 'number', min: 1, max: 2048},
+                movement_speed: {label: text.movementSpeed, type: 'number', min: 0, max: 10},
+                follow_range: {label: text.followRange, type: 'number', min: 0, max: 256},
+                attack_damage: {label: text.attackDamage, type: 'number', min: 0, max: 2048},
+                armor: {label: text.armor, type: 'number', min: 0, max: 2048},
+                knockback_resistance: {label: text.knockbackResistance, type: 'number', min: 0, max: 1},
+                tracking_range: {label: text.trackingRange, type: 'integer', min: 1, max: 256},
+                update_interval: {label: text.updateInterval, type: 'integer', min: 1, max: 60},
+                ai_enabled: {label: text.aiEnabled, type: 'boolean'},
+                ai_template: {label: text.aiTemplate, type: 'string'},
+                animation_transition: {label: text.animationTransition, type: 'boolean'},
+                disable_vanilla_death_animation: {label: text.disableVanillaDeathAnimation, type: 'boolean'},
+                translucent: {label: text.translucent, type: 'boolean'},
+                show_in_moreblock_tab: {label: text.showInMoreBlockTab, type: 'boolean'},
+                spawn_egg_primary_color: {label: text.spawnEggPrimaryColor, type: 'color'},
+                spawn_egg_secondary_color: {label: text.spawnEggSecondaryColor, type: 'color'}
+            };
+        }
+        return {
+            id: {label: text.blockId, type: 'id'},
+            zh_cn: {label: text.chineseName, type: 'string'},
+            en_us: {label: text.englishName, type: 'string'},
+            geo: {label: text.geoFile, type: 'string'},
+            texture: {label: text.textureFile, type: 'string'},
+            display: {label: text.displayFile, type: 'string'},
+            light_level: {label: text.lightLevel, type: 'integer', min: 0, max: 15},
+            supports_sitting: {label: text.canSit, type: 'boolean'},
+            seat_height: {label: text.seatHeight, type: 'number', min: 0, max: 2},
+            supports_lying: {label: text.canLie, type: 'boolean'},
+            lying_height: {label: text.lyingHeight, type: 'number', min: 0, max: 2}
+        };
+    }
+
+    function normalizeComparableValue(value, type) {
+        if (type === 'boolean') {
+            return Boolean(value);
+        }
+        if (type === 'number' || type === 'integer') {
+            const numeric = Number(value);
+            return Number.isFinite(numeric) ? numeric : null;
+        }
+        return String(value || '').trim();
+    }
+
+    function isAiReplaceablePlaceholder(type, key, value, fieldType) {
+        if (fieldType !== 'string' && fieldType !== 'id' && fieldType !== 'color') {
+            return false;
+        }
+        const normalizedValue = String(value || '').trim();
+        if (!normalizedValue) {
+            return false;
+        }
+        const text = getText();
+        const placeholders = type === 'entity'
+            ? {
+                id: ['custom_entity'],
+                zh_cn: [text.defaultEntityChineseName, 'Custom Entity'],
+                en_us: [text.defaultEntityEnglishName, 'Custom Entity']
+            }
+            : {
+                id: ['custom_block'],
+                zh_cn: [text.defaultChineseName, '自定义方块'],
+                en_us: [text.defaultEnglishName, 'Custom Block']
+            };
+        const candidates = placeholders[key];
+        return Array.isArray(candidates) && candidates.includes(normalizedValue);
+    }
+
+    function getAiPromptFieldSummary(type, form) {
+        const defaults = getDialogDefaultValues(type);
+        const meta = getAiFieldMeta(type);
+        return Object.keys(meta).map(key => {
+            const field = meta[key];
+            const currentValue = normalizeComparableValue(form[key], field.type);
+            const defaultValue = normalizeComparableValue(defaults[key], field.type);
+            const looksDefault = currentValue === defaultValue || isAiReplaceablePlaceholder(type, key, currentValue, field.type);
+            const isEmpty = field.type === 'string' || field.type === 'id' || field.type === 'color'
+                ? !String(currentValue || '').trim()
+                : currentValue === null;
+            return {
+                key,
+                label: field.label,
+                type: field.type,
+                current_value: currentValue,
+                default_value: defaultValue,
+                fillable: isEmpty || looksDefault,
+                user_provided: !(isEmpty || looksDefault)
+            };
+        });
+    }
+
+    function extractJsonText(value) {
+        const content = Array.isArray(value)
+            ? value.map(item => (item && typeof item.text === 'string' ? item.text : '')).join('\n')
+            : String(value || '');
+        const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        if (fenced) {
+            return fenced[1].trim();
+        }
+        const firstBrace = content.indexOf('{');
+        const lastBrace = content.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            return content.slice(firstBrace, lastBrace + 1).trim();
+        }
+        return content.trim();
+    }
+
+    async function postJson(url, payload, headers) {
+        if (typeof fetch === 'function') {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: Object.assign({'Content-Type': 'application/json'}, headers || {}),
+                body: JSON.stringify(payload)
+            });
+            const raw = await response.text();
+            const data = parseJsonSafe(raw) || {raw};
+            if (!response.ok) {
+                const message = data && data.error && data.error.message
+                    ? data.error.message
+                    : `${response.status} ${response.statusText}`.trim();
+                throw new Error(message || 'HTTP request failed');
+            }
+            return data;
+        }
+        if (typeof $ !== 'undefined' && $ && typeof $.ajax === 'function') {
+            return $.ajax({
+                url,
+                type: 'POST',
+                data: JSON.stringify(payload),
+                contentType: 'application/json',
+                headers: headers || {}
+            });
+        }
+        throw new Error('Current Blockbench environment does not support network requests');
+    }
+
+    function sanitizeAiValue(value, field) {
+        if (!field) {
+            return undefined;
+        }
+        if (field.type === 'id') {
+            const normalized = String(value || '').trim();
+            return normalized ? sanitizeId(normalized, normalized) : undefined;
+        }
+        if (field.type === 'boolean') {
+            return Boolean(value);
+        }
+        if (field.type === 'number' || field.type === 'integer') {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) {
+                return undefined;
+            }
+            const clamped = Math.min(field.max, Math.max(field.min, numeric));
+            return field.type === 'integer' ? Math.round(clamped) : roundTo(clamped, 3);
+        }
+        if (field.type === 'color') {
+            const normalized = String(value || '').trim();
+            return /^#([0-9a-f]{6})$/i.test(normalized) ? normalized.toLowerCase() : undefined;
+        }
+        const normalized = String(value || '').trim();
+        return normalized || undefined;
+    }
+
+    async function requestAiCompletion(type, form) {
+        const settings = loadAiSettings();
+        const url = normalizeOpenAiEndpoint(settings.base_url);
+        const fields = getAiPromptFieldSummary(type, form);
+        const fillableFields = fields.filter(field => field.fillable).map(field => field.key);
+        const payload = {
+            model: settings.model || AI_DEFAULT_SETTINGS.model,
+            temperature: 0.2,
+            messages: [
+                {
+                    role: 'system',
+                    content: [
+                        'You fill Blockbench MoreBlock export forms.',
+                        'Return JSON only.',
+                        'Only fill keys from fillable_fields.',
+                        'Never overwrite user_provided fields.',
+                        'If a value cannot be inferred reliably, omit it.',
+                        'For id use lowercase snake_case and only [a-z0-9_-].',
+                        'Never set both supports_sitting and supports_lying to true.',
+                        'Boolean or numeric suggestions must be conservative and based on strong evidence.'
+                    ].join(' ')
+                },
+                {
+                    role: 'user',
+                    content: JSON.stringify({
+                        task: 'Infer missing MoreBlock export form values from the already filled fields and project context.',
+                        form_type: type,
+                        project_context: {
+                            project_name: getProjectBaseName(),
+                            default_geo: getDefaultGeoFile(),
+                            default_animation: type === 'entity' ? getDefaultAnimationFile() : null,
+                            suggested_entity_metrics: type === 'entity' ? getSuggestedEntityMetrics() : null
+                        },
+                        fillable_fields: fillableFields,
+                        fields,
+                        response_schema: {
+                            suggestions: {
+                                id: 'optional',
+                                zh_cn: 'optional',
+                                en_us: 'optional'
+                            },
+                            reason: 'brief string'
+                        }
+                    })
+                }
+            ]
+        };
+        return postJson(url, payload, {
+            Authorization: `Bearer ${settings.api_key}`
+        });
+    }
+
+    async function applyAiFill(dialog, type) {
+        const text = getText();
+        const settings = loadAiSettings();
+        if (!String(settings.base_url || '').trim() || !String(settings.api_key || '').trim()) {
+            showMessage(text.aiSettingsMissingTitle, text.aiSettingsMissingMessage, 'warning');
+            showAiSettingsDialog();
+            return;
+        }
+        const dialogId = dialog && dialog.id ? dialog.id : null;
+        const form = dialog.getFormResult();
+        const meta = getAiFieldMeta(type);
+        const fields = getAiPromptFieldSummary(type, form);
+        const fillableKeys = fields.filter(field => field.fillable).map(field => field.key);
+        if (!fillableKeys.length) {
+            showMessage(text.aiFillNoChangesTitle, text.aiFillNoChangesMessage, 'info');
+            return;
+        }
+        const timeoutSeconds = clampAiTimeoutSeconds(settings.timeout_seconds);
+        const progressDialog = createAiProgressDialog(timeoutSeconds);
+        setDialogLocked(dialogId, true);
+        progressDialog.show();
+        try {
+            const result = await withTimeout(
+                requestAiCompletion(type, form),
+                timeoutSeconds * 1000,
+                text.aiTimeoutMessage(timeoutSeconds)
+            );
+            const choice = result && Array.isArray(result.choices) ? result.choices[0] : null;
+            if (!choice || !choice.message) {
+                throw new Error(text.aiNoChoices);
+            }
+            const jsonText = extractJsonText(choice.message.content);
+            const parsed = parseJsonSafe(jsonText);
+            if (!parsed || typeof parsed !== 'object') {
+                throw new Error(text.aiResponseInvalid);
+            }
+            const suggestions = parsed.suggestions && typeof parsed.suggestions === 'object'
+                ? parsed.suggestions
+                : parsed;
+            const nextValues = {};
+            const changedLabels = [];
+            fillableKeys.forEach(key => {
+                if (!Object.prototype.hasOwnProperty.call(suggestions, key)) {
+                    return;
+                }
+                const sanitized = sanitizeAiValue(suggestions[key], meta[key]);
+                if (typeof sanitized === 'undefined') {
+                    return;
+                }
+                const currentValue = normalizeComparableValue(form[key], meta[key].type);
+                const nextValue = normalizeComparableValue(sanitized, meta[key].type);
+                if (currentValue === nextValue) {
+                    return;
+                }
+                nextValues[key] = sanitized;
+                changedLabels.push(meta[key].label);
+            });
+            if (!changedLabels.length) {
+                showMessage(text.aiFillNoChangesTitle, text.aiFillNoChangesMessage, 'info');
+                return;
+            }
+            dialog.setFormValues(nextValues);
+            Blockbench.showQuickMessage(text.aiFillSuccess(changedLabels.join('、')), 5000);
+        } catch (error) {
+            const message = error && error.message ? error.message : String(error || 'Unknown error');
+            showMessage(text.aiFillErrorTitle, text.aiFillErrorMessage(message), 'error');
+        } finally {
+            progressDialog.hide();
+            setDialogLocked(dialogId, false);
+        }
+    }
+
+    function showAiSettingsDialog() {
+        const text = getText();
+        const settings = loadAiSettings();
+        const dialog = new Dialog({
+            id: 'moreblock_ai_settings_dialog',
+            title: text.aiSettingsDialogTitle,
+            width: 620,
+            form: {
+                info: {
+                    label: ' ',
+                    nocolon: true,
+                    type: 'info',
+                    text: text.aiSettingsHelp
+                },
+                base_url: {
+                    label: text.aiBaseUrl,
+                    type: 'text',
+                    value: settings.base_url
+                },
+                api_key: {
+                    label: text.aiApiKey,
+                    type: 'password',
+                    value: settings.api_key
+                },
+                model: {
+                    label: text.aiModel,
+                    type: 'text',
+                    value: settings.model || AI_DEFAULT_SETTINGS.model
+                },
+                timeout_seconds: {
+                    label: text.aiTimeoutSeconds,
+                    type: 'number',
+                    value: clampAiTimeoutSeconds(settings.timeout_seconds),
+                    min: 5,
+                    max: 300,
+                    step: 1,
+                    description: text.aiTimeoutSecondsDescription
+                },
+                warning: {
+                    label: ' ',
+                    nocolon: true,
+                    type: 'info',
+                    text: text.aiPlaintextWarning
+                }
+            },
+            onConfirm(form) {
+                saveAiSettings(form);
+                Blockbench.showQuickMessage(text.aiSettingsSaved, 3000);
+            }
+        });
+        dialog.show();
     }
 
     function encodeUtf8(value) {
@@ -1372,16 +2001,141 @@ let moreblock_generate_hitbox_action;
             if (!face) {
                 return;
             }
-            face.texture = null;
+            face.texture = false;
             face.enabled = false;
+            face.material_name = '';
             if (face.uv) {
                 face.uv = [0, 0, 0, 0];
             }
         });
     }
 
+    function getPreferredTextureObject() {
+        if (typeof Texture === 'undefined' || !Texture || !Array.isArray(Texture.all) || !Texture.all.length) {
+            return null;
+        }
+        return (Texture.getDefault ? Texture.getDefault() : null) || Texture.selected || Texture.all[0] || null;
+    }
+
+    function getTextureCanvas(texture) {
+        if (!texture) {
+            return null;
+        }
+        if (typeof Painter !== 'undefined' && Painter && typeof Painter.getCanvas === 'function') {
+            const painted = Painter.getCanvas(texture);
+            if (painted) {
+                return painted;
+            }
+        }
+        if (texture.canvas) {
+            return texture.canvas;
+        }
+        if (texture.ctx && texture.ctx.canvas) {
+            return texture.ctx.canvas;
+        }
+        return null;
+    }
+
+    function findTransparentPixelInTexture(texture) {
+        const canvas = getTextureCanvas(texture);
+        if (!canvas) {
+            return null;
+        }
+        const context = canvas.getContext('2d');
+        if (!context) {
+            return null;
+        }
+        const width = Math.max(1, canvas.width | 0);
+        const height = Math.max(1, canvas.height | 0);
+        const image = context.getImageData(0, 0, width, height);
+        for (let y = height - 1; y >= 0; y--) {
+            for (let x = width - 1; x >= 0; x--) {
+                const alphaIndex = ((y * width) + x) * 4 + 3;
+                if (image.data[alphaIndex] === 0) {
+                    return {x, y, reserved: false};
+                }
+            }
+        }
+        return null;
+    }
+
+    function ensureTransparentPixelForHitbox(texture) {
+        const existing = findTransparentPixelInTexture(texture);
+        if (existing) {
+            return existing;
+        }
+        const canvas = getTextureCanvas(texture);
+        if (!canvas) {
+            return null;
+        }
+        const x = Math.max(0, (canvas.width | 0) - 1);
+        const y = Math.max(0, (canvas.height | 0) - 1);
+        if (typeof texture.edit === 'function') {
+            texture.edit(editCanvas => {
+                const context = editCanvas.getContext('2d');
+                if (!context) {
+                    return;
+                }
+                context.clearRect(x, y, 1, 1);
+            });
+            if (typeof texture.apply === 'function') {
+                texture.apply(true);
+            }
+            return {x, y, reserved: true};
+        }
+        return null;
+    }
+
+    function getTextureReference(texture) {
+        if (!texture) {
+            return false;
+        }
+        return texture.uuid || texture.id || texture.name || false;
+    }
+
+    function applyTransparentPixelUv(cube, texture, pixel) {
+        if (!cube || !cube.faces || !texture || !pixel) {
+            clearCubeFaces(cube);
+            return;
+        }
+        const textureReference = getTextureReference(texture);
+        Object.keys(cube.faces).forEach(key => {
+            const face = cube.faces[key];
+            if (!face) {
+                return;
+            }
+            face.texture = textureReference;
+            face.enabled = true;
+            face.material_name = '';
+            face.rotation = 0;
+            face.uv = [pixel.x, pixel.y, pixel.x + 1, pixel.y + 1];
+        });
+        cube.autouv = 0;
+        cube.box_uv = false;
+        cube.mirror_uv = false;
+    }
+
+    function createEmptyHitboxFaces() {
+        return {
+            north: {texture: false, enabled: false, uv: [0, 0, 0, 0]},
+            east: {texture: false, enabled: false, uv: [0, 0, 0, 0]},
+            south: {texture: false, enabled: false, uv: [0, 0, 0, 0]},
+            west: {texture: false, enabled: false, uv: [0, 0, 0, 0]},
+            up: {texture: false, enabled: false, uv: [0, 0, 0, 0]},
+            down: {texture: false, enabled: false, uv: [0, 0, 0, 0]}
+        };
+    }
+
     function createHitboxCubes(boxes) {
-        Undo.initEdit({elements: Cube.all.slice(), outliner: true});
+        const text = getText();
+        const hitboxTexture = getPreferredTextureObject();
+        const transparentPixel = hitboxTexture ? ensureTransparentPixelForHitbox(hitboxTexture) : null;
+        Undo.initEdit({
+            elements: Cube.all.slice(),
+            outliner: true,
+            textures: hitboxTexture ? [hitboxTexture] : [],
+            bitmap: Boolean(hitboxTexture)
+        });
         removeExistingHitboxGroup();
         const hitboxGroup = new Group({
             name: 'hitbox',
@@ -1389,19 +2143,25 @@ let moreblock_generate_hitbox_action;
         }).init();
         hitboxGroup.addTo('root');
         boxes.forEach((box, index) => {
-            const hitboxCube = new Cube({
+            const hitboxCube = new Cube().extend({
                 name: boxes.length === 1 ? 'hitbox' : `hitbox_${index + 1}`,
                 from: [box.minX, box.minY, box.minZ],
                 to: [box.maxX, box.maxY, box.maxZ],
                 origin: [0, 0, 0],
-                autouv: 0
+                autouv: 0,
+                faces: createEmptyHitboxFaces()
             }).init();
-            clearCubeFaces(hitboxCube);
+            applyTransparentPixelUv(hitboxCube, hitboxTexture, transparentPixel);
             hitboxCube.addTo(hitboxGroup);
         });
         hitboxGroup.openUp();
         Canvas.updateAll();
         Undo.finishEdit('Generate MoreBlock hitbox');
+        if (!hitboxTexture || !transparentPixel) {
+            Blockbench.showQuickMessage(text.hitboxTextureMissing, 5000);
+        } else if (transparentPixel.reserved) {
+            Blockbench.showQuickMessage(text.hitboxTextureReserved, 4000);
+        }
     }
 
     function resolveHitboxMode(value) {
@@ -1484,8 +2244,7 @@ let moreblock_generate_hitbox_action;
 
     function showExportDialog() {
         const text = getText();
-        const baseName = getProjectBaseName();
-        const defaultId = sanitizeId(baseName);
+        const defaults = getDialogDefaultValues('block');
         const dialog = new Dialog({
             id: 'moreblock_config_export_dialog',
             title: text.dialogTitle,
@@ -1494,55 +2253,74 @@ let moreblock_generate_hitbox_action;
                 id: {
                     label: text.blockId,
                     type: 'text',
-                    value: defaultId
+                    value: defaults.id
                 },
                 zh_cn: {
                     label: text.chineseName,
                     type: 'text',
-                    value: baseName === 'custom_block' ? text.defaultChineseName : baseName
+                    value: defaults.zh_cn
                 },
                 en_us: {
                     label: text.englishName,
                     type: 'text',
-                    value: text.defaultEnglishName
+                    value: defaults.en_us
                 },
                 geo: {
                     label: text.geoFile,
                     type: 'text',
-                    value: getDefaultGeoFile()
+                    value: defaults.geo
                 },
                 texture: {
                     label: text.textureFile,
                     type: 'text',
-                    value: 'texture.png'
+                    value: defaults.texture
                 },
                 display: {
                     label: text.displayFile,
                     type: 'text',
-                    value: ''
+                    value: defaults.display
+                },
+                ai_hint: {
+                    label: ' ',
+                    nocolon: true,
+                    type: 'info',
+                    text: text.aiFillHint
+                },
+                ai_actions: {
+                    label: ' ',
+                    nocolon: true,
+                    type: 'buttons',
+                    buttons: [text.aiFillButton, text.aiSettingsButton],
+                    click(index) {
+                        if (index === 0) {
+                            applyAiFill(dialog, 'block');
+                            return;
+                        }
+                        showAiSettingsDialog();
+                    }
                 },
                 export_zip_package: {
                     label: text.exportZipPackage,
                     type: 'checkbox',
-                    value: false,
+                    value: defaults.export_zip_package,
                     description: text.exportZipPackageDescription
                 },
                 light_level: {
                     label: text.lightLevel,
                     type: 'number',
-                    value: 0,
+                    value: defaults.light_level,
                     min: 0,
                     max: 15
                 },
                 supports_sitting: {
                     label: text.canSit,
                     type: 'checkbox',
-                    value: false
+                    value: defaults.supports_sitting
                 },
                 seat_height: {
                     label: text.seatHeight,
                     type: 'number',
-                    value: 0.5,
+                    value: defaults.seat_height,
                     min: 0,
                     max: 2,
                     step: 0.05
@@ -1550,12 +2328,12 @@ let moreblock_generate_hitbox_action;
                 supports_lying: {
                     label: text.canLie,
                     type: 'checkbox',
-                    value: false
+                    value: defaults.supports_lying
                 },
                 lying_height: {
                     label: text.lyingHeight,
                     type: 'number',
-                    value: 0.5,
+                    value: defaults.lying_height,
                     min: 0,
                     max: 2,
                     step: 0.05
@@ -1577,9 +2355,7 @@ let moreblock_generate_hitbox_action;
 
     function showEntityExportDialog() {
         const text = getText();
-        const baseName = getProjectBaseName();
-        const defaultId = sanitizeId(baseName, 'custom_entity');
-        const metrics = getSuggestedEntityMetrics();
+        const defaults = getDialogDefaultValues('entity');
         const dialog = new Dialog({
             id: 'moreblock_entity_config_export_dialog',
             title: text.entityDialogTitle,
@@ -1588,37 +2364,56 @@ let moreblock_generate_hitbox_action;
                 id: {
                     label: text.entityId,
                     type: 'text',
-                    value: defaultId
+                    value: defaults.id
                 },
                 zh_cn: {
                     label: text.chineseName,
                     type: 'text',
-                    value: baseName === 'custom_block' ? text.defaultEntityChineseName : baseName
+                    value: defaults.zh_cn
                 },
                 en_us: {
                     label: text.englishName,
                     type: 'text',
-                    value: text.defaultEntityEnglishName
+                    value: defaults.en_us
                 },
                 geo: {
                     label: text.geoFile,
                     type: 'text',
-                    value: getDefaultGeoFile()
+                    value: defaults.geo
                 },
                 texture: {
                     label: text.textureFile,
                     type: 'text',
-                    value: 'texture.png'
+                    value: defaults.texture
                 },
                 animation: {
                     label: text.animationFile,
                     type: 'text',
-                    value: getDefaultAnimationFile()
+                    value: defaults.animation
+                },
+                ai_hint: {
+                    label: ' ',
+                    nocolon: true,
+                    type: 'info',
+                    text: text.aiFillHint
+                },
+                ai_actions: {
+                    label: ' ',
+                    nocolon: true,
+                    type: 'buttons',
+                    buttons: [text.aiFillButton, text.aiSettingsButton],
+                    click(index) {
+                        if (index === 0) {
+                            applyAiFill(dialog, 'entity');
+                            return;
+                        }
+                        showAiSettingsDialog();
+                    }
                 },
                 width: {
                     label: text.entityWidth,
                     type: 'number',
-                    value: metrics.width,
+                    value: defaults.width,
                     min: 0.1,
                     max: 64,
                     step: 0.01
@@ -1626,7 +2421,7 @@ let moreblock_generate_hitbox_action;
                 height: {
                     label: text.entityHeight,
                     type: 'number',
-                    value: metrics.height,
+                    value: defaults.height,
                     min: 0.1,
                     max: 64,
                     step: 0.01
@@ -1634,7 +2429,7 @@ let moreblock_generate_hitbox_action;
                 eye_height: {
                     label: text.eyeHeight,
                     type: 'number',
-                    value: metrics.eyeHeight,
+                    value: defaults.eye_height,
                     min: 0.05,
                     max: 64,
                     step: 0.01
@@ -1642,7 +2437,7 @@ let moreblock_generate_hitbox_action;
                 max_health: {
                     label: text.maxHealth,
                     type: 'number',
-                    value: 20,
+                    value: defaults.max_health,
                     min: 1,
                     max: 2048,
                     step: 1
@@ -1650,7 +2445,7 @@ let moreblock_generate_hitbox_action;
                 movement_speed: {
                     label: text.movementSpeed,
                     type: 'number',
-                    value: 0.2,
+                    value: defaults.movement_speed,
                     min: 0,
                     max: 10,
                     step: 0.01
@@ -1658,7 +2453,7 @@ let moreblock_generate_hitbox_action;
                 follow_range: {
                     label: text.followRange,
                     type: 'number',
-                    value: 16,
+                    value: defaults.follow_range,
                     min: 0,
                     max: 256,
                     step: 1
@@ -1666,7 +2461,7 @@ let moreblock_generate_hitbox_action;
                 attack_damage: {
                     label: text.attackDamage,
                     type: 'number',
-                    value: 2,
+                    value: defaults.attack_damage,
                     min: 0,
                     max: 2048,
                     step: 0.5
@@ -1674,7 +2469,7 @@ let moreblock_generate_hitbox_action;
                 armor: {
                     label: text.armor,
                     type: 'number',
-                    value: 0,
+                    value: defaults.armor,
                     min: 0,
                     max: 2048,
                     step: 0.5
@@ -1682,7 +2477,7 @@ let moreblock_generate_hitbox_action;
                 knockback_resistance: {
                     label: text.knockbackResistance,
                     type: 'number',
-                    value: 0.2,
+                    value: defaults.knockback_resistance,
                     min: 0,
                     max: 1,
                     step: 0.05
@@ -1690,7 +2485,7 @@ let moreblock_generate_hitbox_action;
                 tracking_range: {
                     label: text.trackingRange,
                     type: 'number',
-                    value: 8,
+                    value: defaults.tracking_range,
                     min: 1,
                     max: 256,
                     step: 1
@@ -1698,7 +2493,7 @@ let moreblock_generate_hitbox_action;
                 update_interval: {
                     label: text.updateInterval,
                     type: 'number',
-                    value: 3,
+                    value: defaults.update_interval,
                     min: 1,
                     max: 60,
                     step: 1
@@ -1706,53 +2501,53 @@ let moreblock_generate_hitbox_action;
                 ai_enabled: {
                     label: text.aiEnabled,
                     type: 'checkbox',
-                    value: true
+                    value: defaults.ai_enabled
                 },
                 ai_template: {
                     label: text.aiTemplate,
                     type: 'text',
-                    value: 'minecraft:zombie'
+                    value: defaults.ai_template
                 },
                 animation_transition: {
                     label: text.animationTransition,
                     type: 'checkbox',
-                    value: true
+                    value: defaults.animation_transition
                 },
                 disable_vanilla_death_animation: {
                     label: text.disableVanillaDeathAnimation,
                     type: 'checkbox',
-                    value: true
+                    value: defaults.disable_vanilla_death_animation
                 },
                 translucent: {
                     label: text.translucent,
                     type: 'checkbox',
-                    value: true
+                    value: defaults.translucent
                 },
                 show_in_moreblock_tab: {
                     label: text.showInMoreBlockTab,
                     type: 'checkbox',
-                    value: true
+                    value: defaults.show_in_moreblock_tab
                 },
                 spawn_egg_primary_color: {
                     label: text.spawnEggPrimaryColor,
                     type: 'color',
-                    value: '#4b7cf0'
+                    value: defaults.spawn_egg_primary_color
                 },
                 spawn_egg_secondary_color: {
                     label: text.spawnEggSecondaryColor,
                     type: 'color',
-                    value: '#d8e4ff'
+                    value: defaults.spawn_egg_secondary_color
                 },
                 include_animation_states: {
                     label: text.includeAnimationStates,
                     type: 'checkbox',
-                    value: true,
+                    value: defaults.include_animation_states,
                     description: text.includeAnimationStatesDescription
                 },
                 export_zip_package: {
                     label: text.exportZipPackage,
                     type: 'checkbox',
-                    value: false,
+                    value: defaults.export_zip_package,
                     description: text.exportZipPackageDescription
                 }
             },
@@ -1775,7 +2570,7 @@ let moreblock_generate_hitbox_action;
         author: 'Sallos',
         icon: 'fa-cube',
         description: getText().pluginDescription,
-        version: '2.0.0',
+        version: '2.1.0',
         variant: 'both',
         min_version: '4.0.0',
         tags: ['Minecraft: Java Edition'],
@@ -1802,8 +2597,16 @@ let moreblock_generate_hitbox_action;
                 category: 'edit',
                 click: showHitboxDialog
             });
+            moreblock_ai_settings_action = new Action('moreblock_ai_settings', {
+                name: text.aiSettingsActionName,
+                description: text.aiSettingsActionDescription,
+                icon: 'settings',
+                category: 'file',
+                click: showAiSettingsDialog
+            });
             MenuBar.addAction(moreblock_export_action, 'file.export');
             MenuBar.addAction(moreblock_export_entity_action, 'file.export');
+            MenuBar.addAction(moreblock_ai_settings_action, 'file.export');
             MenuBar.addAction(moreblock_generate_hitbox_action, 'filter');
         },
         onunload() {
@@ -1818,6 +2621,10 @@ let moreblock_generate_hitbox_action;
             if (moreblock_generate_hitbox_action) {
                 moreblock_generate_hitbox_action.delete();
                 moreblock_generate_hitbox_action = null;
+            }
+            if (moreblock_ai_settings_action) {
+                moreblock_ai_settings_action.delete();
+                moreblock_ai_settings_action = null;
             }
         }
     });
