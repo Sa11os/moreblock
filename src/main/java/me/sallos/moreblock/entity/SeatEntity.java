@@ -39,6 +39,10 @@ public class SeatEntity extends Entity {
         setPos(seatBlockPos.getX() + 0.5d, seatBlockPos.getY() + height, seatBlockPos.getZ() + 0.5d);
     }
 
+    public BlockPos getSeatBlockPos() {
+        return seatBlockPos;
+    }
+
     @Override
     public void tick() {
         super.tick();

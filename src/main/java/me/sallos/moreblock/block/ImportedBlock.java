@@ -33,6 +33,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.EntityCollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
@@ -220,6 +222,13 @@ public class ImportedBlock extends BaseEntityBlock {
 
     @Override
     public VoxelShape getCollisionShape(@Nonnull BlockState state, @Nonnull BlockGetter level, @Nonnull BlockPos pos, @Nonnull CollisionContext context) {
+        if (context instanceof EntityCollisionContext entityContext) {
+            Entity entity = entityContext.getEntity();
+            if (entity != null && entity.getVehicle() instanceof SeatEntity seat && pos.equals(seat.getSeatBlockPos())) {
+                // 坐在当前方块上的乘客不应再被自身碰撞箱顶高。
+                return Shapes.empty();
+            }
+        }
         return getDynamicShape(state);
     }
 
