@@ -143,9 +143,34 @@ public class ImportedBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
+        VoxelShape collisionShape = getDynamicShape(state);
+        double collisionTop = collisionShape.isEmpty() ? 0.0d : collisionShape.bounds().maxY;
+        double playerBeforeWorldY = player.getY();
+        Moreblock.LOGGER.info(
+                "导入方块开始坐下: block={}, pos={}, player={}, configuredSeatHeight={}, collisionTop={}, playerY={}, playerEyeY={}, playerBeforeWorldY={}",
+                definition.registryName(),
+                pos,
+                player.getGameProfile().getName(),
+                definition.seatHeight(),
+                collisionTop,
+                player.getY() - pos.getY(),
+                player.getEyeY() - pos.getY(),
+                playerBeforeWorldY
+        );
         SeatEntity seat = new SeatEntity(level, pos, definition.seatHeight());
         level.addFreshEntity(seat);
-        player.startRiding(seat);
+        boolean startedRiding = player.startRiding(seat);
+        Moreblock.LOGGER.info(
+                "导入方块坐下请求已发送: block={}, pos={}, player={}, startedRiding={}, seatEntityHeight={}, seatEntityY={}, playerAfterStartRidingY={}, playerDeltaWorldY={}",
+                definition.registryName(),
+                pos,
+                player.getGameProfile().getName(),
+                startedRiding,
+                seat.getConfiguredSeatHeight(),
+                seat.getY() - pos.getY(),
+                player.getY(),
+                player.getY() - playerBeforeWorldY
+        );
         return InteractionResult.CONSUME;
     }
 
