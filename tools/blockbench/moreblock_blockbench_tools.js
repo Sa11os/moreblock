@@ -14,6 +14,11 @@ let moreblock_ai_settings_action;
             entityId: '实体 ID',
             chineseName: '中文名称',
             englishName: '英文名称',
+            itemPageId: '物品页 ID',
+            itemPageChineseName: '物品页中文名',
+            itemPageEnglishName: '物品页英文名',
+            itemPageIcon: '物品页图标方块 ID',
+            itemPageDescription: '只填物品页 ID 时会导出为字符串；如果补了名称或图标，就会导出为对象。',
             geoFile: '模型文件',
             textureFile: '贴图文件',
             animationFile: '动画文件',
@@ -124,6 +129,11 @@ let moreblock_ai_settings_action;
             entityId: 'Entity ID',
             chineseName: 'Chinese Name',
             englishName: 'English Name',
+            itemPageId: 'Item Page ID',
+            itemPageChineseName: 'Item Page Zh Name',
+            itemPageEnglishName: 'Item Page En Name',
+            itemPageIcon: 'Item Page Icon Block ID',
+            itemPageDescription: 'If only the item page id is filled, it exports as a string. If a name or icon is provided, it exports as an object.',
             geoFile: 'Geo File',
             textureFile: 'Texture File',
             animationFile: 'Animation File',
@@ -527,6 +537,10 @@ let moreblock_ai_settings_action;
             id: sanitizeId(baseName),
             zh_cn: baseName === 'custom_block' ? text.defaultChineseName : baseName,
             en_us: text.defaultEnglishName,
+            item_page_id: '',
+            item_page_zh_cn: '',
+            item_page_en_us: '',
+            item_page_icon: '',
             geo: getDefaultGeoFile(),
             texture: 'texture.png',
             display: '',
@@ -574,6 +588,10 @@ let moreblock_ai_settings_action;
             id: {label: text.blockId, type: 'id'},
             zh_cn: {label: text.chineseName, type: 'string'},
             en_us: {label: text.englishName, type: 'string'},
+            item_page_id: {label: text.itemPageId, type: 'id'},
+            item_page_zh_cn: {label: text.itemPageChineseName, type: 'string'},
+            item_page_en_us: {label: text.itemPageEnglishName, type: 'string'},
+            item_page_icon: {label: text.itemPageIcon, type: 'id'},
             geo: {label: text.geoFile, type: 'string'},
             texture: {label: text.textureFile, type: 'string'},
             display: {label: text.displayFile, type: 'string'},
@@ -1400,6 +1418,33 @@ let moreblock_ai_settings_action;
             supports_lying: Boolean(form.supports_lying) && !Boolean(form.supports_sitting),
             lying_height: Number.isFinite(Number.parseFloat(form.lying_height)) ? Number.parseFloat(form.lying_height) : 0.5
         };
+
+        const itemPageId = sanitizeId(String(form.item_page_id || '').trim(), '');
+        const itemPageZhCn = String(form.item_page_zh_cn || '').trim();
+        const itemPageEnUs = String(form.item_page_en_us || '').trim();
+        const itemPageIcon = sanitizeId(String(form.item_page_icon || '').trim(), '');
+        if (itemPageId) {
+            const itemPageHasDetails = itemPageZhCn || itemPageEnUs || itemPageIcon;
+            if (itemPageHasDetails) {
+                config.item_page = {
+                    id: itemPageId
+                };
+                if (itemPageZhCn || itemPageEnUs) {
+                    config.item_page.name = {};
+                    if (itemPageZhCn) {
+                        config.item_page.name.zh_cn = itemPageZhCn;
+                    }
+                    if (itemPageEnUs) {
+                        config.item_page.name.en_us = itemPageEnUs;
+                    }
+                }
+                if (itemPageIcon) {
+                    config.item_page.icon = itemPageIcon;
+                }
+            } else {
+                config.item_page = itemPageId;
+            }
+        }
 
         const display = String(form.display || '').trim();
         if (display) {
@@ -2265,6 +2310,27 @@ let moreblock_ai_settings_action;
                     type: 'text',
                     value: defaults.en_us
                 },
+                item_page_id: {
+                    label: text.itemPageId,
+                    type: 'text',
+                    value: defaults.item_page_id
+                },
+                item_page_zh_cn: {
+                    label: text.itemPageChineseName,
+                    type: 'text',
+                    value: defaults.item_page_zh_cn
+                },
+                item_page_en_us: {
+                    label: text.itemPageEnglishName,
+                    type: 'text',
+                    value: defaults.item_page_en_us
+                },
+                item_page_icon: {
+                    label: text.itemPageIcon,
+                    type: 'text',
+                    value: defaults.item_page_icon,
+                    description: text.itemPageDescription
+                },
                 geo: {
                     label: text.geoFile,
                     type: 'text',
@@ -2570,7 +2636,7 @@ let moreblock_ai_settings_action;
         author: 'Sallos',
         icon: 'fa-cube',
         description: getText().pluginDescription,
-        version: '2.1.0',
+        version: '2.2.0',
         variant: 'both',
         min_version: '4.0.0',
         tags: ['Minecraft: Java Edition'],

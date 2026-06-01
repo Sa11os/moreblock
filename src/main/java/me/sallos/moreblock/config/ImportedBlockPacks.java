@@ -76,6 +76,8 @@ public final class ImportedBlockPacks {
     private static final Map<String, GeoHitboxSystem.HorizontalShapes> API_HORIZONTAL_SHAPES = new LinkedHashMap<>();
     private static final Map<Block, Definition> DEFINITIONS_BY_BLOCK = new IdentityHashMap<>();
     private static final Map<Item, Definition> DEFINITIONS_BY_ITEM = new IdentityHashMap<>();
+    private static final Map<String, ItemPageDefinition> ITEM_PAGES_BY_ID = new LinkedHashMap<>();
+    private static final Map<String, List<Definition>> DEFINITIONS_BY_ITEM_PAGE_ID = new LinkedHashMap<>();
     private static List<PackManifestEntry> PACK_MANIFEST = List.of();
     private static boolean packManifestDirty = false;
 
@@ -94,6 +96,8 @@ public final class ImportedBlockPacks {
         DEFINITIONS_BY_BLOCK.clear();
         DEFINITIONS_BY_ITEM.clear();
         API_HORIZONTAL_SHAPES.clear();
+        ITEM_PAGES_BY_ID.clear();
+        DEFINITIONS_BY_ITEM_PAGE_ID.clear();
         PACK_MANIFEST = List.of();
         packManifestDirty = false;
 
@@ -142,6 +146,11 @@ public final class ImportedBlockPacks {
                 firstNonBlank(definition.zhCnName(), definition.id()),
                 firstNonBlank(definition.enUsName(), definition.zhCnName(), definition.id()),
                 definition.id(),
+                definition.id(),
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -234,7 +243,13 @@ public final class ImportedBlockPacks {
     }
 
     public static synchronized List<RegistryObject<Item>> getDynamicItemRegistryObjects() {
+        bootstrap();
         return List.copyOf(DYNAMIC_ITEMS.values());
+    }
+
+    public static synchronized List<ItemPageDefinition> getItemPages() {
+        bootstrap();
+        return List.copyOf(ITEM_PAGES_BY_ID.values());
     }
 
     public static synchronized Definition getDefinition(String registryName) {
@@ -310,6 +325,7 @@ public final class ImportedBlockPacks {
         }
 
         try {
+            rebuildItemPages();
             writeLanguageFiles();
             writeApiGeneratedAssets();
             PACK_MANIFEST = buildPackManifest();
@@ -397,6 +413,12 @@ public final class ImportedBlockPacks {
         return List.of(
                 ExampleConfigParameter.of("id", "example_block", GSON.toJsonTree("example_block"), language.describeId()),
                 ExampleConfigParameter.of("name", "{ \"zh_cn\": \"示例方块\", \"en_us\": \"Example Block\" }", name, language.describeName()),
+                ExampleConfigParameter.of(
+                        "item_page",
+                        "{ \"id\": \"example_pack\", \"name\": { \"zh_cn\": \"示例物品页\", \"en_us\": \"Example Item Page\" }, \"icon\": \"example_block\" }",
+                        buildExampleItemPageJson(),
+                        language.describeItemPage()
+                ),
                 ExampleConfigParameter.of("geo", "example_block.geo.json", GSON.toJsonTree("example_block.geo.json"), language.describeGeo()),
                 ExampleConfigParameter.of("texture", "texture.png", GSON.toJsonTree("texture.png"), language.describeTexture()),
                 ExampleConfigParameter.of("display", "example_block-display.json", GSON.toJsonTree("example_block-display.json"), language.describeDisplay()),
@@ -408,6 +430,17 @@ public final class ImportedBlockPacks {
                 ExampleConfigParameter.of("lying_height", "0.5", GSON.toJsonTree(0.5d), language.describeLyingHeight()),
                 ExampleConfigParameter.of("lying_rotation_compensation", "0", GSON.toJsonTree(0), language.describeLyingRotationCompensation())
         );
+    }
+
+    private static JsonObject buildExampleItemPageJson() {
+        JsonObject itemPage = new JsonObject();
+        itemPage.addProperty("id", "example_pack");
+        JsonObject itemPageName = new JsonObject();
+        itemPageName.addProperty("zh_cn", "示例物品页");
+        itemPageName.addProperty("en_us", "Example Item Page");
+        itemPage.add("name", itemPageName);
+        itemPage.addProperty("icon", "example_block");
+        return itemPage;
     }
 
     private static ExampleConfigLanguage resolveExampleConfigLanguage() {
@@ -462,6 +495,7 @@ public final class ImportedBlockPacks {
                     .forEach(ImportedBlockPacks::loadPackEntry);
         }
 
+        rebuildItemPages();
         writeLanguageFiles();
     }
 
@@ -561,6 +595,11 @@ public final class ImportedBlockPacks {
                     firstNonBlank(packConfig.zhCnName(), folderName),
                     firstNonBlank(packConfig.enUsName(), packConfig.zhCnName(), folderName),
                     folderName,
+                    firstNonBlank(packConfig.id(), folderName),
+                    packConfig.itemPageId(),
+                    packConfig.itemPageZhCnName(),
+                    packConfig.itemPageEnUsName(),
+                    packConfig.itemPageIconSourceId(),
                     sourceZipName,
                     packDirectory,
                     packConfig.configSourceFile(),
@@ -611,6 +650,7 @@ public final class ImportedBlockPacks {
         try (Reader reader = Files.newBufferedReader(configSource, StandardCharsets.UTF_8)) {
             JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
             JsonObject namesObject = getObject(root, "name", "names");
+            PackItemPageConfig itemPageConfig = resolvePackItemPageConfig(root);
             return new PackConfig(
                     configSource,
                     getOptionalString(root, "id", "block_id", "registry_name", "key"),
@@ -632,7 +672,11 @@ public final class ImportedBlockPacks {
                     resolveConfiguredSeatHeight(root),
                     getOptionalBoolean(root, "supports_lying", "supportsLying", "lieable", "can_lie", "canLie"),
                     getOptionalDouble(root, "lying_height", "lyingHeight", "lie_height", "lieHeight"),
-                    getOptionalInt(root, "lying_rotation_compensation", "lyingRotationCompensation", "bed_rotation_compensation", "bedRotationCompensation")
+                    getOptionalInt(root, "lying_rotation_compensation", "lyingRotationCompensation", "bed_rotation_compensation", "bedRotationCompensation"),
+                    itemPageConfig == null ? null : itemPageConfig.id(),
+                    itemPageConfig == null ? null : itemPageConfig.zhCnName(),
+                    itemPageConfig == null ? null : itemPageConfig.enUsName(),
+                    itemPageConfig == null ? null : itemPageConfig.iconSourceId()
             );
         }
     }
@@ -1039,6 +1083,11 @@ public final class ImportedBlockPacks {
             enUs.addProperty(definition.itemTranslationKey(), definition.enUsName());
         }
 
+        for (ItemPageDefinition itemPage : ITEM_PAGES_BY_ID.values()) {
+            zhCn.addProperty(itemPage.translationKey(), itemPage.zhCnName());
+            enUs.addProperty(itemPage.translationKey(), itemPage.enUsName());
+        }
+
         writeJson(langRoot.resolve("zh_cn.json"), zhCn);
         writeJson(langRoot.resolve("en_us.json"), enUs);
     }
@@ -1202,12 +1251,130 @@ public final class ImportedBlockPacks {
         return builder.toString().replaceAll("_+", "_");
     }
 
+    private static void rebuildItemPages() {
+        ITEM_PAGES_BY_ID.clear();
+        DEFINITIONS_BY_ITEM_PAGE_ID.clear();
+        Map<String, MutableItemPageDefinition> mutablePages = new LinkedHashMap<>();
+
+        for (Definition definition : DEFINITIONS) {
+            if (!isPresent(definition.itemPageId())) {
+                continue;
+            }
+
+            String itemPageId = definition.itemPageId().trim();
+            DEFINITIONS_BY_ITEM_PAGE_ID.computeIfAbsent(itemPageId, ignored -> new ArrayList<>()).add(definition);
+
+            MutableItemPageDefinition mutablePage = mutablePages.computeIfAbsent(itemPageId, MutableItemPageDefinition::new);
+            mutablePages.put(itemPageId, mutablePage.absorb(definition));
+        }
+
+        Map<String, Integer> usedRegistryNames = new LinkedHashMap<>();
+        for (Map.Entry<String, MutableItemPageDefinition> entry : mutablePages.entrySet()) {
+            String itemPageId = entry.getKey();
+            List<Definition> pageDefinitions = DEFINITIONS_BY_ITEM_PAGE_ID.getOrDefault(itemPageId, List.of());
+            if (pageDefinitions.isEmpty()) {
+                continue;
+            }
+
+            MutableItemPageDefinition mutablePage = entry.getValue();
+            String iconSourceId = firstNonBlank(
+                    mutablePage.iconSourceId(),
+                    pageDefinitions.get(0).sourceConfigId(),
+                    pageDefinitions.get(0).sourceFolderName(),
+                    pageDefinitions.get(0).registryName()
+            );
+            String iconRegistryName = resolveItemPageIconRegistryName(iconSourceId, pageDefinitions);
+            String pageRegistryName = allocateItemPageRegistryName(itemPageId, usedRegistryNames);
+            ITEM_PAGES_BY_ID.put(itemPageId, new ItemPageDefinition(
+                    itemPageId,
+                    pageRegistryName,
+                    firstNonBlank(mutablePage.zhCnName(), itemPageId),
+                    firstNonBlank(mutablePage.enUsName(), mutablePage.zhCnName(), itemPageId),
+                    iconSourceId,
+                    iconRegistryName
+            ));
+        }
+    }
+
+    private static String resolveItemPageIconRegistryName(String iconSourceId, List<Definition> pageDefinitions) {
+        Definition matchedDefinition = findDefinitionByItemPageIcon(iconSourceId, pageDefinitions);
+        if (matchedDefinition != null) {
+            return matchedDefinition.registryName();
+        }
+
+        Definition fallbackDefinition = pageDefinitions.get(0);
+        if (isPresent(iconSourceId)) {
+            Moreblock.LOGGER.warn("物品页图标 {} 未匹配到导入方块，已回退为 {}", iconSourceId, fallbackDefinition.registryName());
+        }
+        return fallbackDefinition.registryName();
+    }
+
+    private static Definition findDefinitionByItemPageIcon(String iconSourceId, List<Definition> pageDefinitions) {
+        if (!isPresent(iconSourceId)) {
+            return null;
+        }
+
+        for (Definition definition : pageDefinitions) {
+            if (Objects.equals(definition.sourceConfigId(), iconSourceId)
+                    || Objects.equals(definition.sourceFolderName(), iconSourceId)
+                    || Objects.equals(definition.registryName(), iconSourceId)) {
+                return definition;
+            }
+        }
+
+        for (Definition definition : DEFINITIONS) {
+            if (Objects.equals(definition.sourceConfigId(), iconSourceId)
+                    || Objects.equals(definition.sourceFolderName(), iconSourceId)
+                    || Objects.equals(definition.registryName(), iconSourceId)) {
+                return definition;
+            }
+        }
+        return null;
+    }
+
+    private static String allocateItemPageRegistryName(String itemPageId, Map<String, Integer> usedRegistryNames) {
+        String base = sanitizeToRegistryPath(itemPageId);
+        if (base.isBlank()) {
+            base = "item_page";
+        }
+
+        String candidate = trimRegistryPath("item_page_" + base);
+        Integer usageCount = usedRegistryNames.get(candidate);
+        if (usageCount == null) {
+            usedRegistryNames.put(candidate, 1);
+            return candidate;
+        }
+
+        String unique = candidate;
+        int index = usageCount + 1;
+        while (usedRegistryNames.containsKey(unique)) {
+            unique = trimRegistryPath(candidate + "_" + index);
+            index++;
+        }
+        usedRegistryNames.put(candidate, index - 1);
+        usedRegistryNames.put(unique, 1);
+        return unique;
+    }
+
     private static JsonObject getObject(JsonObject root, String... keys) {
         for (String key : keys) {
             if (root == null || !root.has(key) || !root.get(key).isJsonObject()) {
                 continue;
             }
             return root.getAsJsonObject(key);
+        }
+        return null;
+    }
+
+    private static JsonElement getElement(JsonObject root, String... keys) {
+        if (root == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (!root.has(key) || root.get(key).isJsonNull()) {
+                continue;
+            }
+            return root.get(key);
         }
         return null;
     }
@@ -1290,6 +1457,49 @@ public final class ImportedBlockPacks {
 
     private static boolean isPresent(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private static PackItemPageConfig resolvePackItemPageConfig(JsonObject root) {
+        JsonElement itemPageElement = getElement(root, "item_page", "itemPage", "creative_tab", "creativeTab");
+        JsonObject itemPageObject = itemPageElement != null && itemPageElement.isJsonObject()
+                ? itemPageElement.getAsJsonObject()
+                : null;
+        JsonObject itemPageNameObject = getObject(itemPageObject, "name", "names");
+        if (itemPageNameObject == null) {
+            itemPageNameObject = getObject(root, "item_page_name", "itemPageName", "creative_tab_name", "creativeTabName");
+        }
+
+        String itemPageId = null;
+        if (itemPageElement != null && itemPageElement.isJsonPrimitive()) {
+            try {
+                itemPageId = itemPageElement.getAsString();
+            } catch (Exception ignored) {
+            }
+        }
+        itemPageId = firstNonBlank(
+                itemPageId,
+                getOptionalString(itemPageObject, "id", "page_id", "pageId", "tab_id", "tabId", "key"),
+                getOptionalString(root, "item_page_id", "itemPageId", "creative_tab_id", "creativeTabId")
+        );
+        if (!isPresent(itemPageId)) {
+            return null;
+        }
+
+        String zhCnName = firstNonBlank(
+                getOptionalString(itemPageNameObject, "zh_cn", "zhCN", "zh"),
+                getOptionalString(itemPageObject, "zh_cn", "item_page_name_zh_cn", "itemPageNameZhCn"),
+                getOptionalString(root, "item_page_name_zh_cn", "itemPageNameZhCn", "creative_tab_name_zh_cn", "creativeTabNameZhCn")
+        );
+        String enUsName = firstNonBlank(
+                getOptionalString(itemPageNameObject, "en_us", "enUS", "en"),
+                getOptionalString(itemPageObject, "en_us", "item_page_name_en_us", "itemPageNameEnUs"),
+                getOptionalString(root, "item_page_name_en_us", "itemPageNameEnUs", "creative_tab_name_en_us", "creativeTabNameEnUs")
+        );
+        String iconSourceId = firstNonBlank(
+                getOptionalString(itemPageObject, "icon", "icon_id", "iconId", "item", "item_id", "itemId"),
+                getOptionalString(root, "item_page_icon", "itemPageIcon", "creative_tab_icon", "creativeTabIcon")
+        );
+        return new PackItemPageConfig(itemPageId.trim(), zhCnName, enUsName, iconSourceId);
     }
 
     private static int resolveLightLevel(Integer configuredLightLevel) {
@@ -1388,6 +1598,11 @@ public final class ImportedBlockPacks {
             String zhCnName,
             String enUsName,
             String sourceFolderName,
+            String sourceConfigId,
+            String itemPageId,
+            String itemPageZhCnName,
+            String itemPageEnUsName,
+            String itemPageIconSourceId,
             String sourceZipName,
             Path packDirectory,
             Path configSourceFile,
@@ -1438,6 +1653,34 @@ public final class ImportedBlockPacks {
         }
     }
 
+    public record ItemPageDefinition(
+            String id,
+            String registryName,
+            String zhCnName,
+            String enUsName,
+            String iconSourceId,
+            String iconRegistryName
+    ) {
+        public String translationKey() {
+            return "itemGroup." + Moreblock.MODID + "." + registryName;
+        }
+    }
+
+    private record MutableItemPageDefinition(String id, String zhCnName, String enUsName, String iconSourceId) {
+        private MutableItemPageDefinition(String id) {
+            this(id, null, null, null);
+        }
+
+        private MutableItemPageDefinition absorb(Definition definition) {
+            return new MutableItemPageDefinition(
+                    id,
+                    firstNonBlank(zhCnName, definition.itemPageZhCnName()),
+                    firstNonBlank(enUsName, definition.itemPageEnUsName()),
+                    firstNonBlank(iconSourceId, definition.itemPageIconSourceId())
+            );
+        }
+    }
+
     private record GeoInspection(String hitboxBoneName) {
         private static GeoInspection none() {
             return new GeoInspection(null);
@@ -1469,6 +1712,7 @@ public final class ImportedBlockPacks {
             String markdownExamplePrefix,
             String describeId,
             String describeName,
+            String describeItemPage,
             String describeGeo,
             String describeTexture,
             String describeDisplay,
@@ -1488,6 +1732,7 @@ public final class ImportedBlockPacks {
                     "示例：",
                     "方块 ID，会作为注册名的一部分使用。建议只使用小写英文、数字和下划线。",
                     "方块显示名称。zh_cn 是中文名，en_us 是英文名。",
+                    "物品页配置。可以直接写字符串 ID，也可以像示例这样写成对象并补上名称和图标。图标填写方块包 JSON 里的 id，模组会自动映射成游戏内对应的物品。",
                     "模型文件名，需要对应同一方块文件夹内的 .geo.json 文件。",
                     "贴图文件名，通常使用 texture.png。",
                     "物品展示参数文件名，可选。不填写时会使用内置默认展示。",
@@ -1509,6 +1754,7 @@ public final class ImportedBlockPacks {
                     "Example:",
                     "Block id. It becomes part of the registry name. Lowercase letters, numbers, and underscores are recommended.",
                     "Block display names. zh_cn is the Chinese name, and en_us is the English name.",
+                    "Item page config. You can write a plain string id, or use an object like the example to also define the display name and icon. The icon accepts a block-pack json id and is automatically resolved to the in-game item.",
                     "Model file name. It should point to the .geo.json file in the same block folder.",
                     "Texture file name. texture.png is the usual default.",
                     "Item display transform file name. Optional. The built-in default display is used when omitted.",
@@ -1546,11 +1792,23 @@ public final class ImportedBlockPacks {
             Double seatHeight,
             Boolean supportsLying,
             Double lyingHeight,
-            Integer lyingRotationCompensation
+            Integer lyingRotationCompensation,
+            String itemPageId,
+            String itemPageZhCnName,
+            String itemPageEnUsName,
+            String itemPageIconSourceId
     ) {
         private static PackConfig legacy() {
-            return new PackConfig(null, null, null, null, null, "texture.png", null, null, null, null, null, null, null);
+            return new PackConfig(null, null, null, null, null, "texture.png", null, null, null, null, null, null, null, null, null, null, null);
         }
+    }
+
+    private record PackItemPageConfig(
+            String id,
+            String zhCnName,
+            String enUsName,
+            String iconSourceId
+    ) {
     }
 
     public record PackManifestEntry(
