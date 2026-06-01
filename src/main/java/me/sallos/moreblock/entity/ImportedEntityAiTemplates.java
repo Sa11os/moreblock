@@ -31,6 +31,7 @@ final class ImportedEntityAiTemplates {
             case "minecraft:zombie", "minecraft:husk" -> applyZombieTemplate(entity);
             case "minecraft:spider", "minecraft:cave_spider" -> applySpiderTemplate(entity);
             case "minecraft:skeleton", "minecraft:stray" -> applySkeletonTemplate(entity);
+            case "minecraft:ender_dragon" -> applyEnderDragonTemplate(entity);
             default -> {
                 Moreblock.LOGGER.warn("导入实体 {} 使用了暂未适配的 AI 模板 {}，已回退为空闲游荡逻辑",
                         definition.registryName(),
@@ -77,6 +78,12 @@ final class ImportedEntityAiTemplates {
         entity.addGoal(6, new FleeSunGoal(entity, 1.0d));
         entity.addGoal(7, new LookAtPlayerGoal(entity, Player.class, 12.0f));
         entity.addGoal(8, new RandomLookAroundGoal(entity));
+        entity.addTargetGoal(1, new HurtByTargetGoal(entity));
+        entity.addTargetGoal(2, new NearestAttackableTargetGoal<>(entity, Player.class, true));
+        return true;
+    }
+
+    private static boolean applyEnderDragonTemplate(ImportedEntity entity) {
         entity.addTargetGoal(1, new HurtByTargetGoal(entity));
         entity.addTargetGoal(2, new NearestAttackableTargetGoal<>(entity, Player.class, true));
         return true;
