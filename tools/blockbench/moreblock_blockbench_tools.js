@@ -2,6 +2,7 @@ let moreblock_export_action;
 let moreblock_export_entity_action;
 let moreblock_generate_hitbox_action;
 let moreblock_ai_settings_action;
+let moreblock_force_display_action;
 
 (function() {
     const PLUGIN_ID = 'moreblock_blockbench_tools';
@@ -119,7 +120,13 @@ let moreblock_ai_settings_action;
             aiProgressTitle: 'AI 填写中',
             aiProgressMessage: 'AI 正在分析当前表单并填写缺省参数，请稍候...',
             aiProgressTimeout: seconds => `当前超时设置：${seconds} 秒`,
-            aiProgressLockedHint: '填写进行中，当前导出表单已临时锁定，完成或异常结束前无法修改参数。'
+            aiProgressLockedHint: '填写进行中，当前导出表单已临时锁定，完成或异常结束前无法修改参数。',
+            forceDisplayActionName: '强制添加显示参数页',
+            forceDisplayActionDescription: '为当前项目补齐显示参数页，方便 GeckoLib 项目直接调整显示参数',
+            forceDisplayEnabled: '已为当前项目启用显示参数页，请记得保存 bbmodel',
+            forceDisplayAlreadyEnabled: '当前项目已经有显示参数页',
+            forceDisplayUnavailable: '当前环境不支持初始化显示参数页',
+            forceDisplayNoProject: '当前没有可操作的项目'
         },
         en: {
             dialogTitle: 'Export MoreBlock Config JSON',
@@ -234,7 +241,13 @@ let moreblock_ai_settings_action;
             aiProgressTitle: 'AI Filling',
             aiProgressMessage: 'AI is analyzing the current form and filling missing values...',
             aiProgressTimeout: seconds => `Current timeout: ${seconds}s`,
-            aiProgressLockedHint: 'The export form is temporarily locked while AI fill is running. Parameters cannot be edited until completion or failure.'
+            aiProgressLockedHint: 'The export form is temporarily locked while AI fill is running. Parameters cannot be edited until completion or failure.',
+            forceDisplayActionName: 'Force Add Display Page',
+            forceDisplayActionDescription: 'Initialize display settings for the current project so GeckoLib models can edit display transforms directly',
+            forceDisplayEnabled: 'Display settings have been enabled for the current project. Save the bbmodel to persist it.',
+            forceDisplayAlreadyEnabled: 'The current project already has a display settings page',
+            forceDisplayUnavailable: 'The current environment cannot initialize display settings',
+            forceDisplayNoProject: 'There is no active project to update'
         }
     };
 
@@ -1127,6 +1140,114 @@ let moreblock_ai_settings_action;
             return false;
         }
         return Format.id === 'animated_entity_model' || Format.id === 'geckolib_model';
+    }
+
+    function getDisplaySlotNames() {
+        const fallback = [
+            'thirdperson_righthand',
+            'thirdperson_lefthand',
+            'firstperson_righthand',
+            'firstperson_lefthand',
+            'ground',
+            'gui',
+            'head',
+            'fixed'
+        ];
+        if (typeof DisplayMode === 'undefined' || !DisplayMode || !DisplayMode.slots) {
+            return fallback;
+        }
+        if (Array.isArray(DisplayMode.slots)) {
+            return DisplayMode.slots.filter(slot => typeof slot === 'string' && slot.trim());
+        }
+        const slots = Object.keys(DisplayMode.slots)
+            .map(key => DisplayMode.slots[key])
+            .filter(slot => typeof slot === 'string' && slot.trim());
+        return slots.length ? slots : fallback;
+    }
+
+    function createDisplaySlotSafe(slot) {
+        if (typeof DisplaySlot === 'function') {
+            try {
+                return new DisplaySlot(slot);
+            } catch (error) {
+                try {
+                    return new DisplaySlot(slot, {});
+                } catch (nestedError) {
+                    // Fall through to the minimal exportable slot object.
+                }
+            }
+        }
+        return {
+            export() {
+                return null;
+            }
+        };
+    }
+
+    function hasProjectDisplaySettings() {
+        if (typeof Project === 'undefined' || !Project || !Project.display_settings || typeof Project.display_settings !== 'object') {
+            return false;
+        }
+        return getDisplaySlotNames().some(slot => Boolean(Project.display_settings[slot]));
+    }
+
+    function syncLegacyDisplayReference(displaySettings) {
+        if (typeof display === 'undefined' || !display || typeof display !== 'object') {
+            return;
+        }
+        getDisplaySlotNames().forEach(slot => {
+            if (!display[slot] && displaySettings[slot]) {
+                display[slot] = displaySettings[slot];
+            }
+        });
+    }
+
+    function forceEnableDisplaySettings() {
+        const text = getText();
+        if (typeof Project === 'undefined' || !Project) {
+            Blockbench.showQuickMessage(text.forceDisplayNoProject, 4000);
+            return;
+        }
+        if (typeof Format === 'undefined' || !Format) {
+            Blockbench.showQuickMessage(text.forceDisplayUnavailable, 4000);
+            return;
+        }
+
+        const previousDisplayMode = Boolean(Format.display_mode);
+        const alreadyHasDisplaySettings = hasProjectDisplaySettings();
+        const displaySettings = Project.display_settings && typeof Project.display_settings === 'object'
+            ? Project.display_settings
+            : {};
+
+        let created = false;
+        getDisplaySlotNames().forEach(slot => {
+            if (!displaySettings[slot]) {
+                displaySettings[slot] = createDisplaySlotSafe(slot);
+                created = true;
+            }
+        });
+
+        Project.display_settings = displaySettings;
+        syncLegacyDisplayReference(displaySettings);
+        Format.display_mode = true;
+
+        if (typeof Modes !== 'undefined' && Modes && Modes.selected && typeof Modes.selected.select === 'function') {
+            try {
+                Modes.selected.select();
+            } catch (error) {
+                // Refreshing the UI is best-effort only.
+            }
+        }
+        if (typeof Canvas !== 'undefined' && Canvas && typeof Canvas.updateAll === 'function') {
+            Canvas.updateAll();
+        }
+
+        if (created || !previousDisplayMode || !alreadyHasDisplaySettings) {
+            Project.saved = false;
+            Blockbench.showQuickMessage(text.forceDisplayEnabled, 5000);
+            return;
+        }
+        Blockbench.showQuickMessage(text.forceDisplayAlreadyEnabled, 3000);
     }
 
     function parseJsonSafe(value) {
@@ -2670,10 +2791,18 @@ let moreblock_ai_settings_action;
                 category: 'file',
                 click: showAiSettingsDialog
             });
+            moreblock_force_display_action = new Action('moreblock_force_display_page', {
+                name: text.forceDisplayActionName,
+                description: text.forceDisplayActionDescription,
+                icon: 'tv',
+                category: 'edit',
+                click: forceEnableDisplaySettings
+            });
             MenuBar.addAction(moreblock_export_action, 'file.export');
             MenuBar.addAction(moreblock_export_entity_action, 'file.export');
             MenuBar.addAction(moreblock_ai_settings_action, 'file.export');
             MenuBar.addAction(moreblock_generate_hitbox_action, 'filter');
+            MenuBar.addAction(moreblock_force_display_action, 'filter');
         },
         onunload() {
             if (moreblock_export_action) {
@@ -2691,6 +2820,10 @@ let moreblock_ai_settings_action;
             if (moreblock_ai_settings_action) {
                 moreblock_ai_settings_action.delete();
                 moreblock_ai_settings_action = null;
+            }
+            if (moreblock_force_display_action) {
+                moreblock_force_display_action.delete();
+                moreblock_force_display_action = null;
             }
         }
     });
