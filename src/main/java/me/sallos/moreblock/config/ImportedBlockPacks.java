@@ -157,6 +157,8 @@ public final class ImportedBlockPacks {
                 null,
                 null,
                 null,
+                List.of(),
+                List.of(),
                 shapes,
                 firstNonBlank(definition.hitboxBoneName(), "hitbox"),
                 definition.showInMoreBlockTab(),
@@ -410,6 +412,16 @@ public final class ImportedBlockPacks {
         name.addProperty("zh_cn", "示例方块");
         name.addProperty("en_us", "Example Block");
 
+        JsonObject lore = new JsonObject();
+        JsonArray zhCnLore = new JsonArray();
+        zhCnLore.add("第一行 lore");
+        zhCnLore.add("第二行 lore");
+        JsonArray enUsLore = new JsonArray();
+        enUsLore.add("First lore line");
+        enUsLore.add("Second lore line");
+        lore.add("zh_cn", zhCnLore);
+        lore.add("en_us", enUsLore);
+
         return List.of(
                 ExampleConfigParameter.of("id", "example_block", GSON.toJsonTree("example_block"), language.describeId()),
                 ExampleConfigParameter.of("name", "{ \"zh_cn\": \"示例方块\", \"en_us\": \"Example Block\" }", name, language.describeName()),
@@ -422,6 +434,12 @@ public final class ImportedBlockPacks {
                 ExampleConfigParameter.of("geo", "example_block.geo.json", GSON.toJsonTree("example_block.geo.json"), language.describeGeo()),
                 ExampleConfigParameter.of("texture", "texture.png", GSON.toJsonTree("texture.png"), language.describeTexture()),
                 ExampleConfigParameter.of("display", "example_block-display.json", GSON.toJsonTree("example_block-display.json"), language.describeDisplay()),
+                ExampleConfigParameter.of(
+                        "lore",
+                        "{ \"zh_cn\": [\"第一行 lore\", \"第二行 lore\"], \"en_us\": [\"First lore line\", \"Second lore line\"] }",
+                        lore,
+                        language.describeLore()
+                ),
                 ExampleConfigParameter.of("light_level", "15", GSON.toJsonTree(15), language.describeLightLevel()),
                 ExampleConfigParameter.of("supports_sitting", "false", GSON.toJsonTree(false), language.describeSupportsSitting()),
                 ExampleConfigParameter.of("seat_height", "0.5", GSON.toJsonTree(0.5d), language.describeSeatHeight()),
@@ -606,6 +624,8 @@ public final class ImportedBlockPacks {
                     geoSource,
                     displaySource,
                     textureSource,
+                    List.copyOf(packConfig.zhCnLoreLines()),
+                    List.copyOf(packConfig.enUsLoreLines()),
                     shapes,
                     inspection.hitboxBoneName(),
                     true,
@@ -651,6 +671,7 @@ public final class ImportedBlockPacks {
             JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
             JsonObject namesObject = getObject(root, "name", "names");
             PackItemPageConfig itemPageConfig = resolvePackItemPageConfig(root);
+            PackLoreConfig loreConfig = resolvePackLoreConfig(root);
             return new PackConfig(
                     configSource,
                     getOptionalString(root, "id", "block_id", "registry_name", "key"),
@@ -676,7 +697,9 @@ public final class ImportedBlockPacks {
                     itemPageConfig == null ? null : itemPageConfig.id(),
                     itemPageConfig == null ? null : itemPageConfig.zhCnName(),
                     itemPageConfig == null ? null : itemPageConfig.enUsName(),
-                    itemPageConfig == null ? null : itemPageConfig.iconSourceId()
+                    itemPageConfig == null ? null : itemPageConfig.iconSourceId(),
+                    loreConfig == null ? List.of() : loreConfig.zhCnLines(),
+                    loreConfig == null ? List.of() : loreConfig.enUsLines()
             );
         }
     }
@@ -1081,6 +1104,16 @@ public final class ImportedBlockPacks {
             zhCn.addProperty(definition.itemTranslationKey(), definition.zhCnName());
             enUs.addProperty(definition.blockTranslationKey(), definition.enUsName());
             enUs.addProperty(definition.itemTranslationKey(), definition.enUsName());
+            for (int index = 0; index < definition.loreLineCount(); index++) {
+                zhCn.addProperty(
+                        definition.itemLoreTranslationKey(index + 1),
+                        resolveLoreLine(definition.zhCnLoreLines(), definition.enUsLoreLines(), index)
+                );
+                enUs.addProperty(
+                        definition.itemLoreTranslationKey(index + 1),
+                        resolveLoreLine(definition.enUsLoreLines(), definition.zhCnLoreLines(), index)
+                );
+            }
         }
 
         for (ItemPageDefinition itemPage : ITEM_PAGES_BY_ID.values()) {
@@ -1502,6 +1535,99 @@ public final class ImportedBlockPacks {
         return new PackItemPageConfig(itemPageId.trim(), zhCnName, enUsName, iconSourceId);
     }
 
+    private static PackLoreConfig resolvePackLoreConfig(JsonObject root) {
+        JsonElement loreElement = getElement(root, "lore", "description", "desc", "tooltip");
+        if (loreElement == null || loreElement.isJsonNull()) {
+            return null;
+        }
+
+        if (!loreElement.isJsonObject()) {
+            List<String> lines = readLoreLines(loreElement);
+            return lines.isEmpty() ? null : new PackLoreConfig(lines, lines);
+        }
+
+        JsonObject loreObject = loreElement.getAsJsonObject();
+        List<String> defaultLines = readLoreLines(getElement(loreObject, "default", "value", "lines"));
+        List<String> zhCnLines = firstNonEmpty(
+                readLoreLines(getElement(loreObject, "zh_cn", "zhCN", "zh")),
+                defaultLines
+        );
+        List<String> enUsLines = firstNonEmpty(
+                readLoreLines(getElement(loreObject, "en_us", "enUS", "en")),
+                zhCnLines,
+                defaultLines
+        );
+        zhCnLines = firstNonEmpty(zhCnLines, enUsLines);
+        enUsLines = firstNonEmpty(enUsLines, zhCnLines);
+        if (zhCnLines.isEmpty() && enUsLines.isEmpty()) {
+            return null;
+        }
+        return new PackLoreConfig(zhCnLines, enUsLines);
+    }
+
+    private static List<String> readLoreLines(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return List.of();
+        }
+
+        List<String> lines = new ArrayList<>();
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                lines.addAll(readLoreLines(child));
+            }
+            return normalizeLoreLines(lines);
+        }
+
+        if (!element.isJsonPrimitive()) {
+            return List.of();
+        }
+
+        String text;
+        try {
+            text = element.getAsString();
+        } catch (Exception ignored) {
+            return List.of();
+        }
+
+        String[] splitLines = text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
+        Collections.addAll(lines, splitLines);
+        return normalizeLoreLines(lines);
+    }
+
+    private static List<String> normalizeLoreLines(List<String> lines) {
+        if (lines == null || lines.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> normalized = new ArrayList<>();
+        for (String line : lines) {
+            normalized.add(line == null ? "" : line.strip());
+        }
+
+        int start = 0;
+        while (start < normalized.size() && normalized.get(start).isEmpty()) {
+            start++;
+        }
+        int end = normalized.size() - 1;
+        while (end >= start && normalized.get(end).isEmpty()) {
+            end--;
+        }
+        if (start > end) {
+            return List.of();
+        }
+        return List.copyOf(normalized.subList(start, end + 1));
+    }
+
+    private static String resolveLoreLine(List<String> preferred, List<String> fallback, int index) {
+        if (preferred != null && index >= 0 && index < preferred.size()) {
+            return preferred.get(index);
+        }
+        if (fallback != null && index >= 0 && index < fallback.size()) {
+            return fallback.get(index);
+        }
+        return "";
+    }
+
     private static int resolveLightLevel(Integer configuredLightLevel) {
         if (configuredLightLevel != null) {
             return Math.max(0, Math.min(15, configuredLightLevel));
@@ -1549,6 +1675,19 @@ public final class ImportedBlockPacks {
             return Math.max(-3, Math.min(3, configuredLyingRotationCompensation));
         }
         return 0;
+    }
+
+    @SafeVarargs
+    private static <T> List<T> firstNonEmpty(List<T>... candidates) {
+        if (candidates == null) {
+            return List.of();
+        }
+        for (List<T> candidate : candidates) {
+            if (candidate != null && !candidate.isEmpty()) {
+                return List.copyOf(candidate);
+            }
+        }
+        return List.of();
     }
 
     private static List<PackManifestEntry> buildPackManifest() {
@@ -1609,6 +1748,8 @@ public final class ImportedBlockPacks {
             Path geoSourceFile,
             Path displaySourceFile,
             Path textureSourceFile,
+            List<String> zhCnLoreLines,
+            List<String> enUsLoreLines,
             GeoHitboxSystem.HorizontalShapes horizontalShapes,
             String hitboxBoneName,
             boolean showInMoreBlockTab,
@@ -1634,6 +1775,18 @@ public final class ImportedBlockPacks {
 
         public String itemTranslationKey() {
             return "item." + ownerModId + "." + registryName;
+        }
+
+        public String itemLoreTranslationKey(int lineNumber) {
+            return itemTranslationKey() + ".lore." + lineNumber;
+        }
+
+        public int loreLineCount() {
+            return Math.max(zhCnLoreLines.size(), enUsLoreLines.size());
+        }
+
+        public boolean hasLore() {
+            return loreLineCount() > 0;
         }
 
         public ResourceLocation modelLocation() {
@@ -1716,6 +1869,7 @@ public final class ImportedBlockPacks {
             String describeGeo,
             String describeTexture,
             String describeDisplay,
+            String describeLore,
             String describeLightLevel,
             String describeSupportsSitting,
             String describeSeatHeight,
@@ -1736,6 +1890,7 @@ public final class ImportedBlockPacks {
                     "模型文件名，需要对应同一方块文件夹内的 .geo.json 文件。",
                     "贴图文件名，通常使用 texture.png。",
                     "物品展示参数文件名，可选。不填写时会使用内置默认展示。",
+                    "物品 lore。支持直接写字符串、字符串数组，或像示例这样按语言分别填写数组。字符串里也支持使用换行来拆成多行 tooltip。",
                     "方块亮度，范围 0 到 15。0 表示不发光，15 表示最高亮度。",
                     "是否允许玩家右键坐下。默认 false，设为 true 后玩家可以右键坐在这个方块上。和 supports_lying 互斥，同时开启时两者都不会生效。",
                     "玩家坐下时的高度。默认 0.5，可以按模型高度调整，也支持负值来继续往下压低坐姿。",
@@ -1758,6 +1913,7 @@ public final class ImportedBlockPacks {
                     "Model file name. It should point to the .geo.json file in the same block folder.",
                     "Texture file name. texture.png is the usual default.",
                     "Item display transform file name. Optional. The built-in default display is used when omitted.",
+                    "Item lore. You can write a single string, a string array, or a language object like the example. Newlines inside a string are also split into multiple tooltip lines.",
                     "Block light level from 0 to 15. 0 means no light, and 15 is the brightest.",
                     "Whether players can right-click this block to sit on it. The default is false. It is mutually exclusive with supports_lying. If both are enabled, neither takes effect.",
                     "Player sitting height. The default is 0.5, and you can adjust it to fit the model. Negative values are also supported for lowering the sitting position further.",
@@ -1796,11 +1952,16 @@ public final class ImportedBlockPacks {
             String itemPageId,
             String itemPageZhCnName,
             String itemPageEnUsName,
-            String itemPageIconSourceId
+            String itemPageIconSourceId,
+            List<String> zhCnLoreLines,
+            List<String> enUsLoreLines
     ) {
         private static PackConfig legacy() {
-            return new PackConfig(null, null, null, null, null, "texture.png", null, null, null, null, null, null, null, null, null, null, null);
+            return new PackConfig(null, null, null, null, null, "texture.png", null, null, null, null, null, null, null, null, null, null, null, List.of(), List.of());
         }
+    }
+
+    private record PackLoreConfig(List<String> zhCnLines, List<String> enUsLines) {
     }
 
     private record PackItemPageConfig(
