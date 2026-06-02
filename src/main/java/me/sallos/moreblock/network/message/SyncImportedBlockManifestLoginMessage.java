@@ -10,29 +10,34 @@ import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkDirection;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 @SuppressWarnings("null")
 public final class SyncImportedBlockManifestLoginMessage implements IntSupplier {
+    private static final Object CLIENT_STATE_LOCK = new Object();
+    private static final ChunkedLoginDownloadPayload.AssemblyState CLIENT_DOWNLOAD_STATE = new ChunkedLoginDownloadPayload.AssemblyState();
+    private static List<ImportedBlockPacks.PackManifestEntry> clientPendingServerManifest = List.of();
+
     private int loginIndex;
+    private final boolean hasManifest;
+    private final boolean finalPacket;
     private final List<ImportedBlockPacks.PackManifestEntry> entries;
-    private final List<ImportedBlockPackDownloads.DownloadEntry> downloadEntries;
+    private final ChunkedLoginDownloadPayload.DownloadChunk downloadChunk;
 
     public SyncImportedBlockManifestLoginMessage() {
-        this(ImportedBlockPacks.getPackManifest(), ImportedBlockPackDownloads.buildServerBlockDownloadEntries());
+        this(true, true, ImportedBlockPacks.getPackManifest(), null);
     }
 
-    public SyncImportedBlockManifestLoginMessage(List<ImportedBlockPacks.PackManifestEntry> entries) {
-        this(entries, List.of());
-    }
-
-    public SyncImportedBlockManifestLoginMessage(List<ImportedBlockPacks.PackManifestEntry> entries,
-                                                 List<ImportedBlockPackDownloads.DownloadEntry> downloadEntries) {
+    public SyncImportedBlockManifestLoginMessage(boolean hasManifest,
+                                                 boolean finalPacket,
+                                                 List<ImportedBlockPacks.PackManifestEntry> entries,
+                                                 ChunkedLoginDownloadPayload.DownloadChunk downloadChunk) {
+        this.hasManifest = hasManifest;
+        this.finalPacket = finalPacket;
         this.entries = List.copyOf(entries);
-        this.downloadEntries = List.copyOf(downloadEntries);
+        this.downloadChunk = downloadChunk;
     }
 
     public static void register(int messageId) {
@@ -40,7 +45,7 @@ public final class SyncImportedBlockManifestLoginMessage implements IntSupplier 
                 .loginIndex(SyncImportedBlockManifestLoginMessage::getLoginIndex, SyncImportedBlockManifestLoginMessage::setLoginIndex)
                 .encoder(SyncImportedBlockManifestLoginMessage::encode)
                 .decoder(SyncImportedBlockManifestLoginMessage::decode)
-                .buildLoginPacketList(isLocal -> List.of(Pair.of(SyncImportedBlockManifestLoginMessage.class.getName(), new SyncImportedBlockManifestLoginMessage())))
+                .buildLoginPacketList(isLocal -> buildLoginPacketList())
                 .consumerNetworkThread(SyncImportedBlockManifestLoginMessage::handleServerManifestOnClient)
                 .add();
 
@@ -52,72 +57,100 @@ public final class SyncImportedBlockManifestLoginMessage implements IntSupplier 
                 .add();
     }
 
+    private static List<Pair<String, SyncImportedBlockManifestLoginMessage>> buildLoginPacketList() {
+        List<ImportedBlockPacks.PackManifestEntry> manifestEntries = ImportedBlockPacks.getPackManifest();
+        List<ChunkedLoginDownloadPayload.DownloadChunk> chunks = ChunkedLoginDownloadPayload.split(ImportedBlockPackDownloads.buildServerBlockDownloadEntries());
+        if (chunks.isEmpty()) {
+            return List.of(Pair.of(
+                    SyncImportedBlockManifestLoginMessage.class.getName(),
+                    new SyncImportedBlockManifestLoginMessage(true, true, manifestEntries, null)
+            ));
+        }
+
+        List<Pair<String, SyncImportedBlockManifestLoginMessage>> packets = new java.util.ArrayList<>(chunks.size());
+        for (int index = 0; index < chunks.size(); index++) {
+            boolean hasManifest = index == 0;
+            boolean finalPacket = index == chunks.size() - 1;
+            packets.add(Pair.of(
+                    SyncImportedBlockManifestLoginMessage.class.getName(),
+                    new SyncImportedBlockManifestLoginMessage(
+                            hasManifest,
+                            finalPacket,
+                            hasManifest ? manifestEntries : List.of(),
+                            chunks.get(index)
+                    )
+            ));
+        }
+        return List.copyOf(packets);
+    }
+
     public static void encode(SyncImportedBlockManifestLoginMessage message, FriendlyByteBuf buffer) {
-        SyncImportedBlockManifestToServerMessage.writeManifest(message.entries, buffer);
-        writeDownloadEntries(message.downloadEntries, buffer);
+        buffer.writeBoolean(message.hasManifest);
+        buffer.writeBoolean(message.finalPacket);
+        if (message.hasManifest) {
+            SyncImportedBlockManifestToServerMessage.writeManifest(message.entries, buffer);
+        }
+        buffer.writeBoolean(message.downloadChunk != null);
+        if (message.downloadChunk != null) {
+            ChunkedLoginDownloadPayload.write(message.downloadChunk, buffer);
+        }
     }
 
     public static SyncImportedBlockManifestLoginMessage decode(FriendlyByteBuf buffer) {
-        return new SyncImportedBlockManifestLoginMessage(
-                SyncImportedBlockManifestToServerMessage.readManifest(buffer),
-                readDownloadEntries(buffer)
-        );
+        boolean hasManifest = buffer.readBoolean();
+        boolean finalPacket = buffer.readBoolean();
+        List<ImportedBlockPacks.PackManifestEntry> entries = hasManifest
+                ? SyncImportedBlockManifestToServerMessage.readManifest(buffer)
+                : List.of();
+        ChunkedLoginDownloadPayload.DownloadChunk downloadChunk = buffer.readBoolean()
+                ? ChunkedLoginDownloadPayload.read(buffer)
+                : null;
+        return new SyncImportedBlockManifestLoginMessage(hasManifest, finalPacket, entries, downloadChunk);
     }
 
     public static void handleServerManifestOnClient(SyncImportedBlockManifestLoginMessage message, Supplier<NetworkEvent.Context> contextSupplier) {
         NetworkEvent.Context context = contextSupplier.get();
-        ImportedBlockPackSync.ManifestComparisonResult result = ImportedBlockPackSync.compareManifests(
-                ImportedBlockPacks.getPackManifest(),
-                message.entries
-        );
-        if (!result.matches()) {
-            ImportedBlockPackSync.rememberClientDisconnectMessage(result.buildDisconnectComponent());
-            ImportedBlockPackSync.rememberClientDownloadContext(result, message.downloadEntries);
-            Moreblock.LOGGER.warn("本地更多方块包与服务器不一致：{}\n{}",
-                    result.summary(),
-                    result.buildDetails());
+        List<ImportedBlockPacks.PackManifestEntry> serverManifest = List.of();
+        List<ImportedBlockPackDownloads.DownloadEntry> downloadEntries = List.of();
+        boolean shouldCompare = false;
+
+        synchronized (CLIENT_STATE_LOCK) {
+            if (message.hasManifest) {
+                clientPendingServerManifest = List.copyOf(message.entries);
+                CLIENT_DOWNLOAD_STATE.reset();
+            }
+            if (message.downloadChunk != null) {
+                CLIENT_DOWNLOAD_STATE.append(message.downloadChunk);
+            }
+            if (message.finalPacket) {
+                serverManifest = clientPendingServerManifest;
+                downloadEntries = CLIENT_DOWNLOAD_STATE.snapshotCompletedEntries();
+                clientPendingServerManifest = List.of();
+                CLIENT_DOWNLOAD_STATE.reset();
+                shouldCompare = true;
+            }
         }
-        Moreblock.LOGIN_PACKET_HANDLER.reply(new Acknowledge(message.getLoginIndex(), ImportedBlockPacks.getPackManifest()), context);
+
+        if (shouldCompare) {
+            ImportedBlockPackSync.ManifestComparisonResult result = ImportedBlockPackSync.compareManifests(
+                    ImportedBlockPacks.getPackManifest(),
+                    serverManifest
+            );
+            if (!result.matches()) {
+                ImportedBlockPackSync.rememberClientDisconnectMessage(result.buildDisconnectComponent());
+                ImportedBlockPackSync.rememberClientDownloadContext(result, downloadEntries);
+                Moreblock.LOGGER.warn("本地更多方块包与服务器不一致：{}\n{}",
+                        result.summary(),
+                        result.buildDetails());
+            }
+        }
+
+        Moreblock.LOGIN_PACKET_HANDLER.reply(new Acknowledge(
+                message.getLoginIndex(),
+                message.finalPacket,
+                message.finalPacket ? ImportedBlockPacks.getPackManifest() : List.of()
+        ), context);
         context.setPacketHandled(true);
-    }
-
-    public static void writeDownloadEntries(List<ImportedBlockPackDownloads.DownloadEntry> entries, FriendlyByteBuf buffer) {
-        buffer.writeVarInt(entries.size());
-        for (ImportedBlockPackDownloads.DownloadEntry entry : entries) {
-            buffer.writeUtf(entry.packType(), 16);
-            buffer.writeUtf(entry.storageType(), 16);
-            buffer.writeUtf(entry.registryName(), 128);
-            buffer.writeUtf(entry.displayName(), 128);
-            buffer.writeUtf(entry.sourceName(), 128);
-            buffer.writeUtf(entry.fingerprint(), 64);
-            buffer.writeUtf(entry.fileName(), 128);
-            buffer.writeUtf(entry.relativePath(), 256);
-            buffer.writeUtf(entry.archiveSha256(), 64);
-            buffer.writeByteArray(entry.content());
-        }
-    }
-
-    public static List<ImportedBlockPackDownloads.DownloadEntry> readDownloadEntries(FriendlyByteBuf buffer) {
-        int size = buffer.readVarInt();
-        if (size < 0 || size > 512) {
-            throw new IllegalArgumentException("更多方块包下载清单数量非法: " + size);
-        }
-        List<ImportedBlockPackDownloads.DownloadEntry> entries = new ArrayList<>(size);
-        for (int index = 0; index < size; index++) {
-            entries.add(new ImportedBlockPackDownloads.DownloadEntry(
-                    buffer.readUtf(16),
-                    buffer.readUtf(16),
-                    buffer.readUtf(128),
-                    buffer.readUtf(128),
-                    buffer.readUtf(128),
-                    buffer.readUtf(64),
-                    buffer.readUtf(128),
-                    buffer.readUtf(256),
-                    buffer.readUtf(64),
-                    buffer.readByteArray(32 * 1024 * 1024)
-            ));
-        }
-        return entries;
     }
 
     public int getLoginIndex() {
@@ -135,28 +168,40 @@ public final class SyncImportedBlockManifestLoginMessage implements IntSupplier 
 
     public static final class Acknowledge implements IntSupplier {
         private int loginIndex;
+        private final boolean finalPacket;
         private final List<ImportedBlockPacks.PackManifestEntry> entries;
 
         public Acknowledge() {
-            this(Integer.MIN_VALUE, List.of());
+            this(Integer.MIN_VALUE, false, List.of());
         }
 
-        public Acknowledge(int loginIndex, List<ImportedBlockPacks.PackManifestEntry> entries) {
+        public Acknowledge(int loginIndex, boolean finalPacket, List<ImportedBlockPacks.PackManifestEntry> entries) {
             this.loginIndex = loginIndex;
+            this.finalPacket = finalPacket;
             this.entries = List.copyOf(entries);
         }
 
         public static void encode(Acknowledge message, FriendlyByteBuf buffer) {
-            SyncImportedBlockManifestToServerMessage.writeManifest(message.entries, buffer);
+            buffer.writeBoolean(message.finalPacket);
+            if (message.finalPacket) {
+                SyncImportedBlockManifestToServerMessage.writeManifest(message.entries, buffer);
+            }
         }
 
         public static Acknowledge decode(FriendlyByteBuf buffer) {
-            return new Acknowledge(Integer.MIN_VALUE, SyncImportedBlockManifestToServerMessage.readManifest(buffer));
+            boolean finalPacket = buffer.readBoolean();
+            return new Acknowledge(
+                    Integer.MIN_VALUE,
+                    finalPacket,
+                    finalPacket ? SyncImportedBlockManifestToServerMessage.readManifest(buffer) : List.of()
+            );
         }
 
         public static void handleClientManifestOnServer(Acknowledge message, Supplier<NetworkEvent.Context> contextSupplier) {
             NetworkEvent.Context context = contextSupplier.get();
-            ImportedBlockPackSync.verifyClientManifestDuringLogin(context.getNetworkManager(), message.entries);
+            if (message.finalPacket) {
+                ImportedBlockPackSync.verifyClientManifestDuringLogin(context.getNetworkManager(), message.entries);
+            }
             context.setPacketHandled(true);
         }
 
