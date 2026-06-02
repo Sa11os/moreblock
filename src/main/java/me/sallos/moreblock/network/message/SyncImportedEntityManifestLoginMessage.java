@@ -1,6 +1,7 @@
 package me.sallos.moreblock.network.message;
 
 import me.sallos.moreblock.Moreblock;
+import me.sallos.moreblock.config.ImportedBlockPackDownloads;
 import me.sallos.moreblock.config.ImportedEntityPacks;
 import me.sallos.moreblock.network.ImportedEntityPackSync;
 import net.minecraft.network.FriendlyByteBuf;
@@ -17,13 +18,20 @@ import java.util.function.Supplier;
 public final class SyncImportedEntityManifestLoginMessage implements IntSupplier {
     private int loginIndex;
     private final List<ImportedEntityPacks.PackManifestEntry> entries;
+    private final List<ImportedBlockPackDownloads.DownloadEntry> downloadEntries;
 
     public SyncImportedEntityManifestLoginMessage() {
-        this(ImportedEntityPacks.getPackManifest());
+        this(ImportedEntityPacks.getPackManifest(), ImportedBlockPackDownloads.buildServerEntityDownloadEntries());
     }
 
     public SyncImportedEntityManifestLoginMessage(List<ImportedEntityPacks.PackManifestEntry> entries) {
+        this(entries, List.of());
+    }
+
+    public SyncImportedEntityManifestLoginMessage(List<ImportedEntityPacks.PackManifestEntry> entries,
+                                                  List<ImportedBlockPackDownloads.DownloadEntry> downloadEntries) {
         this.entries = List.copyOf(entries);
+        this.downloadEntries = List.copyOf(downloadEntries);
     }
 
     public static void register(int messageId) {
@@ -45,10 +53,14 @@ public final class SyncImportedEntityManifestLoginMessage implements IntSupplier
 
     public static void encode(SyncImportedEntityManifestLoginMessage message, FriendlyByteBuf buffer) {
         SyncImportedEntityManifestToServerMessage.writeManifest(message.entries, buffer);
+        SyncImportedBlockManifestLoginMessage.writeDownloadEntries(message.downloadEntries, buffer);
     }
 
     public static SyncImportedEntityManifestLoginMessage decode(FriendlyByteBuf buffer) {
-        return new SyncImportedEntityManifestLoginMessage(SyncImportedEntityManifestToServerMessage.readManifest(buffer));
+        return new SyncImportedEntityManifestLoginMessage(
+                SyncImportedEntityManifestToServerMessage.readManifest(buffer),
+                SyncImportedBlockManifestLoginMessage.readDownloadEntries(buffer)
+        );
     }
 
     public static void handleServerManifestOnClient(SyncImportedEntityManifestLoginMessage message, Supplier<NetworkEvent.Context> contextSupplier) {
@@ -59,6 +71,7 @@ public final class SyncImportedEntityManifestLoginMessage implements IntSupplier
         );
         if (!result.matches()) {
             ImportedEntityPackSync.rememberClientDisconnectMessage(result.buildDisconnectComponent());
+            ImportedEntityPackSync.rememberClientDownloadContext(result, message.downloadEntries);
             Moreblock.LOGGER.warn("本地更多实体包与服务器不一致：{}\n{}",
                     result.summary(),
                     result.buildDetails());

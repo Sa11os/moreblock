@@ -639,7 +639,7 @@ public final class ImportedEntityPacks {
         deleteTree(extractRoot);
         Files.createDirectories(extractRoot);
         extractZip(zipFile, extractRoot);
-        loadDirectoryEntry(resolveExtractedPackDirectory(extractRoot), zipFile.getFileName().toString());
+        loadDirectoryEntry(resolveExtractedPackDirectory(extractRoot), CONFIG_ROOT.relativize(zipFile).toString().replace('\\', '/'));
     }
 
     private static PackConfig readPackConfig(Path packDirectory, String folderName) throws IOException {

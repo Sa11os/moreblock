@@ -13,5 +13,13 @@
   "disconnect.moreblock.configured_entity_pack.mismatch.missing": "Client is missing these packs:",
   "disconnect.moreblock.configured_entity_pack.mismatch.extra": "Client has extra packs:",
   "disconnect.moreblock.configured_entity_pack.mismatch.different": "These packs differ from the server:",
-  "disconnect.moreblock.configured_entity_pack.mismatch.footer": "Please sync the imported entity packs between client and server, then try again."
+  "disconnect.moreblock.configured_entity_pack.mismatch.footer": "Please sync the imported entity packs between client and server, then try again.",
+  "screen.moreblock.pack_download.title": "MoreBlock Imported Pack Sync",
+  "screen.moreblock.pack_download.ready": "The server allows pushing missing or different imported packs. Restart the client after downloading.",
+  "screen.moreblock.pack_download.summary": "Downloadable/replaced imported packs: %s",
+  "screen.moreblock.pack_download.progress": "Progress: %s / %s",
+  "screen.moreblock.pack_download.current": "Saving: %s",
+  "screen.moreblock.pack_download.download": "Download and Replace Resources",
+  "screen.moreblock.pack_download.none": "No downloadable imported packs.",
+  "screen.moreblock.pack_download.done": "Processed %s imported packs. Existing files were backed up. Restart the client before joining again."
 }

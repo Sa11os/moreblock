@@ -1,6 +1,7 @@
 package me.sallos.moreblock.network;
 
 import me.sallos.moreblock.Moreblock;
+import me.sallos.moreblock.config.ImportedBlockPackDownloads;
 import me.sallos.moreblock.config.ImportedEntityPacks;
 import net.minecraft.network.Connection;
 import net.minecraft.network.PacketListener;
@@ -24,6 +25,7 @@ public final class ImportedEntityPackSync {
     private static final int VERIFY_TIMEOUT_TICKS = 60;
     private static final Set<UUID> PENDING_PLAYERS = ConcurrentHashMap.newKeySet();
     private static volatile Component rememberedClientDisconnectMessage = null;
+    private static volatile ImportedBlockPackSync.DownloadContext rememberedClientDownloadContext = null;
 
     private ImportedEntityPackSync() {
     }
@@ -90,18 +92,22 @@ public final class ImportedEntityPackSync {
         Map<String, ImportedEntityPacks.PackManifestEntry> clientByRegistry = indexByRegistryName(clientManifest);
         Map<String, ImportedEntityPacks.PackManifestEntry> serverByRegistry = indexByRegistryName(serverManifest);
         List<String> missingOnClient = new ArrayList<>();
+        List<String> missingRegistryNames = new ArrayList<>();
         List<String> extraOnClient = new ArrayList<>();
         List<String> differentContent = new ArrayList<>();
+        List<String> differentRegistryNames = new ArrayList<>();
 
         for (Map.Entry<String, ImportedEntityPacks.PackManifestEntry> entry : serverByRegistry.entrySet()) {
             ImportedEntityPacks.PackManifestEntry clientEntry = clientByRegistry.get(entry.getKey());
             if (clientEntry == null) {
                 missingOnClient.add(entry.getValue().describe());
+                missingRegistryNames.add(entry.getKey());
                 continue;
             }
 
             if (!entry.getValue().fingerprint().equals(clientEntry.fingerprint())) {
                 differentContent.add(entry.getValue().describe());
+                differentRegistryNames.add(entry.getKey());
             }
         }
 
@@ -112,13 +118,46 @@ public final class ImportedEntityPackSync {
         }
 
         missingOnClient.sort(Comparator.naturalOrder());
+        missingRegistryNames.sort(Comparator.naturalOrder());
         extraOnClient.sort(Comparator.naturalOrder());
         differentContent.sort(Comparator.naturalOrder());
-        return new ManifestComparisonResult(missingOnClient, extraOnClient, differentContent);
+        differentRegistryNames.sort(Comparator.naturalOrder());
+        return new ManifestComparisonResult(missingOnClient, missingRegistryNames, extraOnClient, differentContent, differentRegistryNames);
     }
 
     public static void rememberClientDisconnectMessage(Component message) {
         rememberedClientDisconnectMessage = message;
+    }
+
+    public static void rememberClientDownloadContext(ManifestComparisonResult result, List<ImportedBlockPackDownloads.DownloadEntry> entries) {
+        if (entries.isEmpty()) {
+            rememberedClientDownloadContext = null;
+            return;
+        }
+
+        Map<String, ImportedBlockPackDownloads.DownloadEntry> entriesByRegistryName = new LinkedHashMap<>();
+        for (ImportedBlockPackDownloads.DownloadEntry entry : entries) {
+            entriesByRegistryName.put(entry.registryName(), entry);
+        }
+
+        List<ImportedBlockPackDownloads.DownloadEntry> downloadableEntries = new ArrayList<>();
+        Set<String> addedDownloadKeys = ConcurrentHashMap.newKeySet();
+        List<String> wantedRegistryNames = new ArrayList<>();
+        wantedRegistryNames.addAll(result.missingRegistryNames());
+        wantedRegistryNames.addAll(result.differentRegistryNames());
+        for (String registryName : wantedRegistryNames) {
+            ImportedBlockPackDownloads.DownloadEntry entry = entriesByRegistryName.get(registryName);
+            if (entry != null && addedDownloadKeys.add(entry.packType() + ":" + entry.relativePath())) {
+                downloadableEntries.add(entry);
+            }
+        }
+        rememberedClientDownloadContext = downloadableEntries.isEmpty() ? null : new ImportedBlockPackSync.DownloadContext(downloadableEntries);
+    }
+
+    public static ImportedBlockPackSync.DownloadContext consumeRememberedClientDownloadContext() {
+        ImportedBlockPackSync.DownloadContext context = rememberedClientDownloadContext;
+        rememberedClientDownloadContext = null;
+        return context;
     }
 
     public static Component consumeRememberedClientDisconnectMessage() {
@@ -156,8 +195,10 @@ public final class ImportedEntityPackSync {
 
     public record ManifestComparisonResult(
             List<String> missingOnClient,
+            List<String> missingRegistryNames,
             List<String> extraOnClient,
-            List<String> differentContent
+            List<String> differentContent,
+            List<String> differentRegistryNames
     ) {
         public boolean matches() {
             return missingOnClient.isEmpty() && extraOnClient.isEmpty() && differentContent.isEmpty();

@@ -13,5 +13,13 @@
   "disconnect.moreblock.configured_entity_pack.mismatch.missing": "客户端缺少以下包：",
   "disconnect.moreblock.configured_entity_pack.mismatch.extra": "客户端多出以下包：",
   "disconnect.moreblock.configured_entity_pack.mismatch.different": "以下包内容与服务端不一致：",
-  "disconnect.moreblock.configured_entity_pack.mismatch.footer": "请同步客户端与服务端的导入实体包后再试。"
+  "disconnect.moreblock.configured_entity_pack.mismatch.footer": "请同步客户端与服务端的导入实体包后再试。",
+  "screen.moreblock.pack_download.title": "MoreBlock 导入包同步",
+  "screen.moreblock.pack_download.ready": "服务端允许推送缺少或不一致的导入包。下载完成后需要重启客户端。",
+  "screen.moreblock.pack_download.summary": "可下载/替换导入包：%s 个",
+  "screen.moreblock.pack_download.progress": "进度：%s / %s",
+  "screen.moreblock.pack_download.current": "正在保存：%s",
+  "screen.moreblock.pack_download.download": "下载并替换资源",
+  "screen.moreblock.pack_download.none": "没有可下载的导入包。",
+  "screen.moreblock.pack_download.done": "已处理 %s 个导入包，旧文件已备份，请重启客户端后重新进入服务器。"
 }
