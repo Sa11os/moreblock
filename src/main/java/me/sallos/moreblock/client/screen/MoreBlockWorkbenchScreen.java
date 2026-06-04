@@ -35,6 +35,7 @@ public final class MoreBlockWorkbenchScreen extends Screen {
     private static final int PAGE_WIDTH = 170;
     private static final int ITEM_WIDTH = 180;
     private static final int PREVIEW_WIDTH = 64;
+    private static final int SCROLLBAR_WIDTH = 4;
 
     private final List<Category> categories = new ArrayList<>();
     private int categoryIndex;
@@ -142,12 +143,13 @@ public final class MoreBlockWorkbenchScreen extends Screen {
         for (int row = 0; row < VISIBLE_ROWS; row++) {
             int rowY = y + row * ROW_HEIGHT;
             if (row >= categories.size()) {
-                renderEmptyRow(guiGraphics, x, rowY, categoryWidth);
+                renderEmptyRow(guiGraphics, x, rowY, categoryWidth - SCROLLBAR_WIDTH - 2);
                 continue;
             }
             Category category = categories.get(row);
-            renderTextRow(guiGraphics, x, rowY, categoryWidth, category.name(), row == categoryIndex, 0xD8E8FF);
+            renderTextRow(guiGraphics, x, rowY, categoryWidth - SCROLLBAR_WIDTH - 2, category.name(), row == categoryIndex, 0xD8E8FF);
         }
+        renderScrollbar(guiGraphics, x + categoryWidth - SCROLLBAR_WIDTH, y, VISIBLE_ROWS * ROW_HEIGHT - 2, categories.size(), VISIBLE_ROWS, 0);
     }
 
     private void renderPages(GuiGraphics guiGraphics, int left, int top) {
@@ -158,12 +160,13 @@ public final class MoreBlockWorkbenchScreen extends Screen {
             int index = pageScrollOffset + row;
             int rowY = y + row * ROW_HEIGHT;
             if (index >= pages.size()) {
-                renderEmptyRow(guiGraphics, x, rowY, PAGE_WIDTH);
+                renderEmptyRow(guiGraphics, x, rowY, PAGE_WIDTH - SCROLLBAR_WIDTH - 2);
                 continue;
             }
             PageGroup page = pages.get(index);
-            renderTextRow(guiGraphics, x, rowY, PAGE_WIDTH, "▸ " + page.name(), index == pageIndex, 0xD8E8FF);
+            renderTextRow(guiGraphics, x, rowY, PAGE_WIDTH - SCROLLBAR_WIDTH - 2, "▸ " + page.name(), index == pageIndex, 0xD8E8FF);
         }
+        renderScrollbar(guiGraphics, x + PAGE_WIDTH - SCROLLBAR_WIDTH, y, VISIBLE_ROWS * ROW_HEIGHT - 2, pages.size(), VISIBLE_ROWS, pageScrollOffset);
     }
 
     private void renderItems(GuiGraphics guiGraphics, int left, int top) {
@@ -174,15 +177,16 @@ public final class MoreBlockWorkbenchScreen extends Screen {
             int index = itemScrollOffset + row;
             int rowY = y + row * ROW_HEIGHT;
             if (index >= items.size()) {
-                renderEmptyRow(guiGraphics, x, rowY, ITEM_WIDTH);
+                renderEmptyRow(guiGraphics, x, rowY, ITEM_WIDTH - SCROLLBAR_WIDTH - 2);
                 continue;
             }
             Entry entry = items.get(index);
             boolean selected = index == itemIndex;
-            guiGraphics.fill(x, rowY, x + ITEM_WIDTH, rowY + ROW_HEIGHT - 2, selected ? 0xA0607088 : 0x80505050);
+            guiGraphics.fill(x, rowY, x + ITEM_WIDTH - SCROLLBAR_WIDTH - 2, rowY + ROW_HEIGHT - 2, selected ? 0xA0607088 : 0x80505050);
             guiGraphics.renderItem(entry.stack(), x + 2, rowY + 1);
-            guiGraphics.drawString(font, fitText(entry.name(), ITEM_WIDTH - 28), x + 22, rowY + 5, selected ? 0xFFFFFF : 0xCFCFCF, false);
+            guiGraphics.drawString(font, fitText(entry.name(), ITEM_WIDTH - 28 - SCROLLBAR_WIDTH - 2), x + 22, rowY + 5, selected ? 0xFFFFFF : 0xCFCFCF, false);
         }
+        renderScrollbar(guiGraphics, x + ITEM_WIDTH - SCROLLBAR_WIDTH, y, VISIBLE_ROWS * ROW_HEIGHT - 2, items.size(), VISIBLE_ROWS, itemScrollOffset);
     }
 
     private void renderPreview(GuiGraphics guiGraphics, int left, int top) {
@@ -208,6 +212,23 @@ public final class MoreBlockWorkbenchScreen extends Screen {
 
     private void renderEmptyRow(GuiGraphics guiGraphics, int x, int y, int width) {
         guiGraphics.fill(x, y, x + width, y + ROW_HEIGHT - 2, 0x80383838);
+    }
+
+    private void renderScrollbar(GuiGraphics guiGraphics, int x, int y, int height, int totalCount, int visibleCount, int scrollOffset) {
+        guiGraphics.fill(x, y, x + SCROLLBAR_WIDTH, y + height, 0x60404040);
+        if (totalCount <= 0) {
+            return;
+        }
+        if (totalCount <= visibleCount) {
+            guiGraphics.fill(x, y, x + SCROLLBAR_WIDTH, y + height, 0x50808080);
+            return;
+        }
+
+        int thumbHeight = Math.max(12, Math.round((float) height * (float) visibleCount / (float) totalCount));
+        int maxScroll = Math.max(1, totalCount - visibleCount);
+        int travel = Math.max(0, height - thumbHeight);
+        int thumbY = y + Math.round((float) travel * (float) scrollOffset / (float) maxScroll);
+        guiGraphics.fill(x, thumbY, x + SCROLLBAR_WIDTH, thumbY + thumbHeight, 0xC0B8C6D9);
     }
 
     private boolean clickList(double mouseX, double mouseY, int x, int y, int width, int size, int scrollOffset, IntConsumer handler) {

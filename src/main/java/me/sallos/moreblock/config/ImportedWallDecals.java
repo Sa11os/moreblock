@@ -21,6 +21,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -31,6 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
+import javax.imageio.ImageIO;
 
 @SuppressWarnings("null")
 public final class ImportedWallDecals {
@@ -246,7 +250,7 @@ public final class ImportedWallDecals {
     private static void writeGeneratedAssets(Definition definition) throws IOException {
         Path assetsRoot = GENERATED_PACK_ROOT.resolve("assets").resolve(Moreblock.MODID);
         copyFile(definition.textureSourceFile(), assetsRoot.resolve("textures").resolve("wall_decals").resolve(definition.registryName() + ".png"));
-        copyFile(definition.textureSourceFile(), assetsRoot.resolve("textures").resolve("item").resolve(definition.registryName() + ".png"));
+        writePaddedItemTexture(definition.textureSourceFile(), assetsRoot.resolve("textures").resolve("item").resolve(definition.registryName() + ".png"));
 
         JsonObject itemModel = new JsonObject();
         itemModel.addProperty("parent", "minecraft:item/generated");
@@ -288,6 +292,32 @@ public final class ImportedWallDecals {
     private static void copyFile(Path source, Path target) throws IOException {
         Files.createDirectories(target.getParent());
         Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private static void writePaddedItemTexture(Path source, Path target) throws IOException {
+        BufferedImage original = ImageIO.read(source.toFile());
+        if (original == null || original.getWidth() <= 0 || original.getHeight() <= 0) {
+            copyFile(source, target);
+            return;
+        }
+
+        int canvasSize = Math.max(original.getWidth(), original.getHeight());
+        BufferedImage canvas = new BufferedImage(canvasSize, canvasSize, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = canvas.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+            int offsetX = (canvasSize - original.getWidth()) / 2;
+            int offsetY = (canvasSize - original.getHeight()) / 2;
+            graphics.drawImage(original, offsetX, offsetY, null);
+        } finally {
+            graphics.dispose();
+        }
+
+        Files.createDirectories(target.getParent());
+        if (!ImageIO.write(canvas, "png", target.toFile())) {
+            throw new IOException("无法写入墙纸物品贴图: " + target);
+        }
     }
 
     private static void writeJson(Path target, JsonObject jsonObject) throws IOException {
