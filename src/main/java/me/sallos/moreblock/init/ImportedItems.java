@@ -2,6 +2,7 @@ package me.sallos.moreblock.init;
 
 import me.sallos.moreblock.Moreblock;
 import me.sallos.moreblock.config.ImportedBlockPacks;
+import me.sallos.moreblock.config.ImportedWallDecals;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
@@ -12,6 +13,7 @@ public final class ImportedItems {
 
     static {
         ImportedBlockPacks.registerItems(REGISTRY);
+        ImportedWallDecals.registerItems(REGISTRY);
     }
 
     private ImportedItems() {
@@ -23,5 +25,6 @@ public final class ImportedItems {
 
     public static void registerApiItems() {
         ImportedBlockPacks.registerItems(REGISTRY);
+        ImportedWallDecals.registerItems(REGISTRY);
     }
 }

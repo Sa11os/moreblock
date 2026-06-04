@@ -6,6 +6,7 @@ import me.sallos.moreblock.client.renderer.ImportedBlockRenderer;
 import me.sallos.moreblock.client.renderer.SeatEntityRenderer;
 import me.sallos.moreblock.config.ImportedBlockPacks;
 import me.sallos.moreblock.config.ImportedEntityPacks;
+import me.sallos.moreblock.config.ImportedWallDecals;
 import me.sallos.moreblock.init.ImportedBlockEntities;
 import me.sallos.moreblock.init.MoreBlockEntityTypes;
 import net.minecraft.network.chat.Component;
@@ -55,6 +56,9 @@ public final class MoreBlockClientModEvents {
         }
         if (ImportedEntityPacks.hasDefinitions()) {
             registerDynamicPack(event, ImportedEntityPacks.getGeneratedPackRoot(), "moreblock_config_entities", "MoreBlock Imported Entities");
+        }
+        if (ImportedWallDecals.hasDefinitions()) {
+            registerDynamicPack(event, ImportedWallDecals.getGeneratedPackRoot(), "moreblock_config_wall_decals", "MoreBlock Imported Wall Decals");
         }
     }
 

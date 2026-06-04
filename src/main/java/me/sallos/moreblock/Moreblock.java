@@ -3,6 +3,7 @@ package me.sallos.moreblock;
 import me.sallos.moreblock.config.ImportedBlockPacks;
 import me.sallos.moreblock.config.ImportedBlockPackDownloads;
 import me.sallos.moreblock.config.ImportedEntityPacks;
+import me.sallos.moreblock.config.ImportedWallDecals;
 import me.sallos.moreblock.init.ImportedBlockEntities;
 import me.sallos.moreblock.init.ImportedBlocks;
 import me.sallos.moreblock.init.ImportedEntityItems;
@@ -77,6 +78,7 @@ public class Moreblock {
         ImportedBlockPacks.bootstrap();
         ImportedBlockPackDownloads.bootstrap();
         ImportedEntityPacks.bootstrap();
+        ImportedWallDecals.bootstrap();
         GeckoLib.initialize();
         MinecraftForge.EVENT_BUS.register(this);
 

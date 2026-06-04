@@ -1,5 +1,6 @@
 let moreblock_export_action;
 let moreblock_export_entity_action;
+let moreblock_export_wall_decal_action;
 let moreblock_generate_hitbox_action;
 let moreblock_ai_settings_action;
 let moreblock_force_display_action;
@@ -10,9 +11,11 @@ let moreblock_force_display_action;
         zh: {
             dialogTitle: '导出 MoreBlock 配置 JSON',
             entityDialogTitle: '导出 MoreBlock 实体配置 JSON',
+            wallDecalDialogTitle: '导出 MoreBlock 墙面贴画 JSON',
             zipExportType: 'MoreBlock ZIP 导入包',
             blockId: '方块 ID',
             entityId: '实体 ID',
+            wallDecalId: '墙面贴画 ID',
             chineseName: '中文名称',
             englishName: '英文名称',
             itemPageId: '物品页 ID',
@@ -54,8 +57,10 @@ let moreblock_force_display_action;
             exportZipPackageDescription: '勾选后会把配置文件和当前项目目录中能找到的 geo、贴图、display、animation 一起打包成 MoreBlock 可直接导入的 ZIP。',
             exportType: 'MoreBlock 配置 JSON',
             entityExportType: 'MoreBlock 实体配置 JSON',
+            wallDecalExportType: 'MoreBlock 墙面贴画配置 JSON',
             exported: 'MoreBlock 配置已导出',
             entityExported: 'MoreBlock 实体配置已导出',
+            wallDecalExported: 'MoreBlock 墙面贴画配置已导出',
             zipExported: 'MoreBlock ZIP 导入包已导出',
             zipExportedWithMissing: missing => `MoreBlock ZIP 导入包已导出，但以下文件未找到：${missing}`,
             zipExportDesktopOnly: 'ZIP 打包导出仅支持 Blockbench 桌面版',
@@ -67,6 +72,8 @@ let moreblock_force_display_action;
             actionDescription: '创建 MoreBlock 方块配置 JSON 文件',
             entityActionName: '导出 MoreBlock 实体配置 JSON',
             entityActionDescription: '创建 MoreBlock 实体配置 JSON 文件',
+            wallDecalActionName: '导出 MoreBlock 墙面贴画 JSON',
+            wallDecalActionDescription: '创建 MoreBlock 墙面贴画配置 JSON 文件',
             hitboxActionName: '生成 MoreBlock Hitbox',
             simpleHitboxActionName: '生成简单 Hitbox',
             complexHitboxActionName: '生成复杂 Hitbox',
@@ -90,6 +97,8 @@ let moreblock_force_display_action;
             hitboxTextureReserved: '已为 hitbox 预留透明像素，避免导出后贴图覆盖',
             defaultChineseName: '自定义方块',
             defaultEnglishName: 'Custom Block',
+            defaultWallDecalChineseName: '自定义墙面贴画',
+            defaultWallDecalEnglishName: 'Custom Wall Decal',
             defaultEntityChineseName: '自定义实体',
             defaultEntityEnglishName: 'Custom Entity',
             aiSettingsActionName: 'MoreBlock AI 设置',
@@ -131,9 +140,11 @@ let moreblock_force_display_action;
         en: {
             dialogTitle: 'Export MoreBlock Config JSON',
             entityDialogTitle: 'Export MoreBlock Entity Config JSON',
+            wallDecalDialogTitle: 'Export MoreBlock Wall Decal JSON',
             zipExportType: 'MoreBlock ZIP Package',
             blockId: 'Block ID',
             entityId: 'Entity ID',
+            wallDecalId: 'Wall Decal ID',
             chineseName: 'Chinese Name',
             englishName: 'English Name',
             itemPageId: 'Item Page ID',
@@ -175,8 +186,10 @@ let moreblock_force_display_action;
             exportZipPackageDescription: 'Bundle the config file together with any geo, texture, display and animation files found in the current project folder into an import-ready MoreBlock ZIP.',
             exportType: 'MoreBlock Config JSON',
             entityExportType: 'MoreBlock Entity Config JSON',
+            wallDecalExportType: 'MoreBlock Wall Decal Config JSON',
             exported: 'MoreBlock config exported',
             entityExported: 'MoreBlock entity config exported',
+            wallDecalExported: 'MoreBlock wall decal config exported',
             zipExported: 'MoreBlock ZIP package exported',
             zipExportedWithMissing: missing => `MoreBlock ZIP package exported, but these files were not found: ${missing}`,
             zipExportDesktopOnly: 'ZIP packaging is only available in Blockbench desktop',
@@ -188,6 +201,8 @@ let moreblock_force_display_action;
             actionDescription: 'Create a MoreBlock block config JSON file',
             entityActionName: 'Export MoreBlock Entity Config JSON',
             entityActionDescription: 'Create a MoreBlock entity config JSON file',
+            wallDecalActionName: 'Export MoreBlock Wall Decal JSON',
+            wallDecalActionDescription: 'Create a MoreBlock wall decal config JSON file',
             hitboxActionName: 'Generate MoreBlock Hitbox',
             simpleHitboxActionName: 'Generate Simple Hitbox',
             complexHitboxActionName: 'Generate Complex Hitbox',
@@ -211,6 +226,8 @@ let moreblock_force_display_action;
             hitboxTextureReserved: 'Reserved a transparent texture pixel for hitbox cubes to prevent texture bleed after export',
             defaultChineseName: '自定义方块',
             defaultEnglishName: 'Custom Block',
+            defaultWallDecalChineseName: '自定义墙面贴画',
+            defaultWallDecalEnglishName: 'Custom Wall Decal',
             defaultEntityChineseName: 'Custom Entity',
             defaultEntityEnglishName: 'Custom Entity',
             aiSettingsActionName: 'MoreBlock AI Settings',
@@ -544,6 +561,14 @@ let moreblock_force_display_action;
                 spawn_egg_secondary_color: '#d8e4ff',
                 include_animation_states: true,
                 export_zip_package: true
+            };
+        }
+        if (type === 'wall_decal') {
+            return {
+                id: sanitizeId(baseName, 'custom_wall_decal'),
+                zh_cn: baseName === 'custom_block' ? text.defaultWallDecalChineseName : baseName,
+                en_us: text.defaultWallDecalEnglishName,
+                texture: 'texture.png'
             };
         }
         return {
@@ -1574,6 +1599,19 @@ let moreblock_force_display_action;
         return config;
     }
 
+    function buildWallDecalConfig(form) {
+        const text = getText();
+        return {
+            id: sanitizeId(form.id, 'custom_wall_decal'),
+            name: {
+                zh_cn: String(form.zh_cn || '').trim() || text.defaultWallDecalChineseName,
+                en_us: String(form.en_us || '').trim() || text.defaultWallDecalEnglishName
+            },
+            texture: String(form.texture || '').trim() || 'texture.png',
+            wall_decal: true
+        };
+    }
+
     function buildEntityConfig(form) {
         const text = getText();
         const metrics = getSuggestedEntityMetrics();
@@ -2540,6 +2578,45 @@ let moreblock_force_display_action;
         dialog.show();
     }
 
+    function showWallDecalExportDialog() {
+        const text = getText();
+        const defaults = getDialogDefaultValues('wall_decal');
+        const dialog = new Dialog({
+            id: 'moreblock_wall_decal_config_export_dialog',
+            title: text.wallDecalDialogTitle,
+            width: 520,
+            form: {
+                id: {
+                    label: text.wallDecalId,
+                    type: 'text',
+                    value: defaults.id
+                },
+                zh_cn: {
+                    label: text.chineseName,
+                    type: 'text',
+                    value: defaults.zh_cn
+                },
+                en_us: {
+                    label: text.englishName,
+                    type: 'text',
+                    value: defaults.en_us
+                },
+                texture: {
+                    label: text.textureFile,
+                    type: 'text',
+                    value: defaults.texture
+                }
+            },
+            onConfirm(form) {
+                const latestText = getText();
+                const config = buildWallDecalConfig(form);
+                const content = JSON.stringify(config, null, 2) + '\n';
+                exportJsonContent(latestText.wallDecalExportType, `${config.id}.json`, content, latestText.wallDecalExported);
+            }
+        });
+        dialog.show();
+    }
+
     function showEntityExportDialog() {
         const text = getText();
         const defaults = getDialogDefaultValues('entity');
@@ -2777,6 +2854,13 @@ let moreblock_force_display_action;
                 category: 'file',
                 click: showEntityExportDialog
             });
+            moreblock_export_wall_decal_action = new Action('export_moreblock_wall_decal_config_json', {
+                name: text.wallDecalActionName,
+                description: text.wallDecalActionDescription,
+                icon: 'fa-image',
+                category: 'file',
+                click: showWallDecalExportDialog
+            });
             moreblock_generate_hitbox_action = new Action('generate_moreblock_hitbox', {
                 name: text.hitboxActionName,
                 description: text.hitboxActionDescription,
@@ -2800,6 +2884,7 @@ let moreblock_force_display_action;
             });
             MenuBar.addAction(moreblock_export_action, 'file.export');
             MenuBar.addAction(moreblock_export_entity_action, 'file.export');
+            MenuBar.addAction(moreblock_export_wall_decal_action, 'file.export');
             MenuBar.addAction(moreblock_ai_settings_action, 'file.export');
             MenuBar.addAction(moreblock_generate_hitbox_action, 'filter');
             MenuBar.addAction(moreblock_force_display_action, 'filter');
@@ -2812,6 +2897,10 @@ let moreblock_force_display_action;
             if (moreblock_export_entity_action) {
                 moreblock_export_entity_action.delete();
                 moreblock_export_entity_action = null;
+            }
+            if (moreblock_export_wall_decal_action) {
+                moreblock_export_wall_decal_action.delete();
+                moreblock_export_wall_decal_action = null;
             }
             if (moreblock_generate_hitbox_action) {
                 moreblock_generate_hitbox_action.delete();
