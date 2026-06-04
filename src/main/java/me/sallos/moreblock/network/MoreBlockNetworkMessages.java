@@ -3,6 +3,8 @@ package me.sallos.moreblock.network;
 import me.sallos.moreblock.Moreblock;
 import me.sallos.moreblock.network.message.ApplySeatHeightDebugMessage;
 import me.sallos.moreblock.network.message.ClearWallDecalsMessage;
+import me.sallos.moreblock.network.message.CraftMoreBlockWorkbenchItemMessage;
+import me.sallos.moreblock.network.message.OpenMoreBlockWorkbenchMessage;
 import me.sallos.moreblock.network.message.OpenSeatHeightDebugScreenMessage;
 import me.sallos.moreblock.network.message.SyncImportedEntityManifestLoginMessage;
 import me.sallos.moreblock.network.message.SyncImportedEntityManifestToServerMessage;
@@ -59,6 +61,18 @@ public final class MoreBlockNetworkMessages {
                 ClearWallDecalsMessage::encode,
                 ClearWallDecalsMessage::decode,
                 ClearWallDecalsMessage::handle
+        );
+        Moreblock.addNetworkMessage(
+                OpenMoreBlockWorkbenchMessage.class,
+                OpenMoreBlockWorkbenchMessage::encode,
+                OpenMoreBlockWorkbenchMessage::decode,
+                OpenMoreBlockWorkbenchMessage::handle
+        );
+        Moreblock.addNetworkMessage(
+                CraftMoreBlockWorkbenchItemMessage.class,
+                CraftMoreBlockWorkbenchItemMessage::encode,
+                CraftMoreBlockWorkbenchItemMessage::decode,
+                CraftMoreBlockWorkbenchItemMessage::handle
         );
     }
 }

@@ -31,10 +31,11 @@ public final class MoreBlockCreativeTabs {
                 List<ItemLike> importedItems = collectImportedItems();
                 if (importedItems.isEmpty()) {
                     // 保证创造标签页始终可见，哪怕当前还没有导入任何内容
-                    output.accept(Items.CHEST);
+                    output.accept(ImportedItems.MOREBLOCK_WORKBENCH.get());
                     return;
                 }
                 importedItems.forEach(output::accept);
+                output.accept(ImportedItems.MOREBLOCK_WORKBENCH.get());
             })
             .build());
 
