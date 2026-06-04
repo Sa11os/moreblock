@@ -21,5 +21,9 @@
   "screen.moreblock.pack_download.current": "正在保存：%s",
   "screen.moreblock.pack_download.download": "下载并替换资源",
   "screen.moreblock.pack_download.none": "没有可下载的导入包。",
-  "screen.moreblock.pack_download.done": "已处理 %s 个导入包，旧文件已备份，请重启客户端后重新进入服务器。"
+  "screen.moreblock.pack_download.done": "已处理 %s 个导入包，旧文件已备份，请重启客户端后重新进入服务器。",
+  "screen.moreblock.world_pack_guard.title": "当前存档缺少导入方块包",
+  "screen.moreblock.world_pack_guard.message": "检测到当前导入方块包与此存档上次记录不一致。继续进入可能导致存档内对应方块消失。\n\n%s\n是否继续进入游戏？",
+  "screen.moreblock.world_pack_guard.continue": "继续",
+  "screen.moreblock.world_pack_guard.back": "返回"
 }

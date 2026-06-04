@@ -7,6 +7,8 @@
   "mixins": [
   ],
   "client": [
+    "client.MinecraftMixin",
+    "client.WorldListEntryMixin"
   ],
   "injectors": {
     "defaultRequire": 1

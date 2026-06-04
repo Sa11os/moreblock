@@ -21,5 +21,9 @@
   "screen.moreblock.pack_download.current": "Saving: %s",
   "screen.moreblock.pack_download.download": "Download and Replace Resources",
   "screen.moreblock.pack_download.none": "No downloadable imported packs.",
-  "screen.moreblock.pack_download.done": "Processed %s imported packs. Existing files were backed up. Restart the client before joining again."
+  "screen.moreblock.pack_download.done": "Processed %s imported packs. Existing files were backed up. Restart the client before joining again.",
+  "screen.moreblock.world_pack_guard.title": "Imported Block Packs Missing",
+  "screen.moreblock.world_pack_guard.message": "The current imported block packs do not match the last record for this world. Continuing may remove matching blocks from the world.\n\n%s\nContinue loading this world?",
+  "screen.moreblock.world_pack_guard.continue": "Continue",
+  "screen.moreblock.world_pack_guard.back": "Back"
 }
