@@ -14,7 +14,6 @@ import net.minecraft.world.level.Level;
 import javax.annotation.Nullable;
 import java.util.List;
 
-@SuppressWarnings("null")
 public class ImportedWallDecalItem extends Item {
     private final String definitionKey;
 

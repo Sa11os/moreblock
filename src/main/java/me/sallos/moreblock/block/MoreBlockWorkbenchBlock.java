@@ -17,7 +17,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.network.PacketDistributor;
 
-@SuppressWarnings("deprecation")
 public class MoreBlockWorkbenchBlock extends Block {
     private static final VoxelShape SHAPE = Shapes.or(
             box(1, 0, 1, 15, 12, 15),

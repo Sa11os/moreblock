@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-@SuppressWarnings("null")
 public final class MoreBlockCreativeTabs {
     public static final DeferredRegister<CreativeModeTab> REGISTRY = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Moreblock.MODID);
     private static final Map<String, RegistryObject<CreativeModeTab>> ITEM_PAGE_TABS = new LinkedHashMap<>();

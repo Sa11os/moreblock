@@ -20,7 +20,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-@SuppressWarnings("null")
 public final class ImportedEntityPackSync {
     private static final int VERIFY_TIMEOUT_TICKS = 60;
     private static final Set<UUID> PENDING_PLAYERS = ConcurrentHashMap.newKeySet();

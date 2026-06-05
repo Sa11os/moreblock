@@ -20,7 +20,6 @@ import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nonnull;
 
-@SuppressWarnings("null")
 public class SeatEntity extends Entity {
     private BlockPos seatBlockPos = BlockPos.ZERO;
     private boolean lying;

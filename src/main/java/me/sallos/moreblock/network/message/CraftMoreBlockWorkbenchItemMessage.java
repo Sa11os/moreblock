@@ -2,7 +2,6 @@ package me.sallos.moreblock.network.message;
 
 import me.sallos.moreblock.workbench.MoreBlockWorkbenchCrafting;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;

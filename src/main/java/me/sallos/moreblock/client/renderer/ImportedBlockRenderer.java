@@ -11,7 +11,6 @@ import net.minecraft.core.Direction;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.renderer.GeoBlockRenderer;
 
-@SuppressWarnings("null")
 public class ImportedBlockRenderer extends GeoBlockRenderer<ImportedBlockEntity> {
     private static final int MODEL_ROTATION_COMPENSATION_STEPS = 3;
 

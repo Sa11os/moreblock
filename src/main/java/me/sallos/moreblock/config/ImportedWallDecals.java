@@ -2,7 +2,6 @@ package me.sallos.moreblock.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -31,12 +30,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 
-@SuppressWarnings("null")
 public final class ImportedWallDecals {
     public static final String DEFAULT_ITEM_PAGE_ID = "wall_decals";
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();

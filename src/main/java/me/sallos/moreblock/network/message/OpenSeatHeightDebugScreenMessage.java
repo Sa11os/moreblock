@@ -8,7 +8,6 @@ import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
 
-@SuppressWarnings("null")
 public final class OpenSeatHeightDebugScreenMessage {
     private static final int MAX_DISPLAY_NAME_LENGTH = 128;
     private static final int MAX_REGISTRY_NAME_LENGTH = 128;

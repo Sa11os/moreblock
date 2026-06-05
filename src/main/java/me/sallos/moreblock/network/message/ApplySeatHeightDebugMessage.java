@@ -8,7 +8,6 @@ import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
 
-@SuppressWarnings("null")
 public final class ApplySeatHeightDebugMessage {
     private final double seatHeight;
 

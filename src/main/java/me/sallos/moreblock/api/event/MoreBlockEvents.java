@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-@SuppressWarnings("unused")
 public final class MoreBlockEvents {
     private static final List<UseBlockCallback> USE_BLOCK_CALLBACKS = new ArrayList<>();
     private static final List<PlaceBlockCallback> PLACE_BLOCK_CALLBACKS = new ArrayList<>();

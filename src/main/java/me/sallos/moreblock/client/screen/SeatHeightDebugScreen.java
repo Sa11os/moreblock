@@ -21,7 +21,6 @@ public final class SeatHeightDebugScreen extends Screen {
     private final String registryName;
     private double currentSeatHeight;
     private double lastSentSeatHeight;
-    private SeatHeightSlider slider;
 
     public SeatHeightDebugScreen(String displayName, String registryName, double seatHeight) {
         super(Component.literal("MoreBlock 坐高调试"));
@@ -35,7 +34,7 @@ public final class SeatHeightDebugScreen extends Screen {
     protected void init() {
         int centerX = width / 2;
         int top = height / 2 - 30;
-        slider = addRenderableWidget(new SeatHeightSlider(centerX - 110, top, 220, 20, currentSeatHeight));
+        addRenderableWidget(new SeatHeightSlider(centerX - 110, top, 220, 20, currentSeatHeight));
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
                 .bounds(centerX - 40, top + 52, 80, 20)
                 .build());

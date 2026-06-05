@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
-@SuppressWarnings("null")
 public final class SyncImportedBlockManifestLoginMessage implements IntSupplier {
     private static final Object CLIENT_STATE_LOCK = new Object();
     private static final ChunkedLoginDownloadPayload.AssemblyState CLIENT_DOWNLOAD_STATE = new ChunkedLoginDownloadPayload.AssemblyState();

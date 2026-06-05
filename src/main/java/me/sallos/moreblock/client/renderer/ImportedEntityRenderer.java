@@ -10,10 +10,15 @@ import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
-@SuppressWarnings("null")
 public class ImportedEntityRenderer extends GeoEntityRenderer<ImportedEntity> {
     public ImportedEntityRenderer(EntityRendererProvider.Context context) {
         super(context, new ImportedEntityModel());
+    }
+
+    @Override
+    public ResourceLocation getTextureLocation(ImportedEntity animatable) {
+        ImportedEntityPacks.Definition definition = animatable.getDefinition();
+        return definition == null ? ResourceLocation.fromNamespaceAndPath("minecraft", "missingno") : definition.textureLocation();
     }
 
     @Override

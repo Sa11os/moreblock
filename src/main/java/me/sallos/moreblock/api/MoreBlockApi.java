@@ -5,7 +5,6 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.Objects;
 
-@SuppressWarnings("unused")
 public final class MoreBlockApi {
     private MoreBlockApi() {
     }

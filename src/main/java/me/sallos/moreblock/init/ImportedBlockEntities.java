@@ -9,7 +9,6 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
-@SuppressWarnings("null")
 public final class ImportedBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> REGISTRY = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, Moreblock.MODID);
     private static final RegistryObject<BlockEntityType<ImportedBlockEntity>> IMPORTED_BLOCK = ImportedBlockPacks.registerDynamicBlockEntity(REGISTRY);

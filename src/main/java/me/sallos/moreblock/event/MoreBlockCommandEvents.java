@@ -18,7 +18,6 @@ import net.minecraftforge.network.PacketDistributor;
 import java.util.Collection;
 
 @Mod.EventBusSubscriber(modid = Moreblock.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
-@SuppressWarnings("null")
 public final class MoreBlockCommandEvents {
     private MoreBlockCommandEvents() {
     }
@@ -62,21 +61,6 @@ public final class MoreBlockCommandEvents {
             source.sendSuccess(() -> Component.literal(
                     "方块「" + definition.displayName() + "」[" + definition.registryName() + "] 来自文件夹：" + definition.sourceFolderName()), false);
         }
-        return 1;
-    }
-
-    private static int checkHeldConfiguredBlockSeatHeight(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        ImportedBlockPacks.Definition definition = getHeldConfiguredBlockDefinition(player, source);
-        if (definition == null) {
-            return 0;
-        }
-        if (!definition.supportsSitting()) {
-            source.sendFailure(Component.literal("手持导入方块不支持坐下。"));
-            return 0;
-        }
-
-        source.sendSuccess(() -> Component.literal(buildSeatHeightDebugText(definition)), false);
         return 1;
     }
 
@@ -154,30 +138,5 @@ public final class MoreBlockCommandEvents {
         return definitions.size();
     }
 
-    private static ImportedBlockPacks.Definition getHeldConfiguredBlockDefinition(ServerPlayer player, CommandSourceStack source) {
-        ItemStack held = player.getMainHandItem();
-        if (held.isEmpty()) {
-            source.sendFailure(Component.literal("你手上没有持有任何物品。"));
-            return null;
-        }
 
-        ImportedBlockPacks.Definition definition = ImportedBlockPacks.getDefinition(held.getItem());
-        if (definition == null) {
-            source.sendFailure(Component.literal("手持物品不是导入的方块。"));
-            return null;
-        }
-        return definition;
-    }
-
-    private static String buildSeatHeightDebugText(ImportedBlockPacks.Definition definition) {
-        double seatHeight = definition.seatHeight();
-        double seatPixels = seatHeight * 16.0d;
-        return "方块「" + definition.displayName()
-                + "」[" + definition.registryName() + "] 坐高="
-                + formatSeatHeight(seatHeight) + " (" + formatSeatHeight(seatPixels) + "px)";
-    }
-
-    private static String formatSeatHeight(double value) {
-        return String.format(java.util.Locale.ROOT, "%.3f", value);
-    }
 }

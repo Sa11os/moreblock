@@ -41,7 +41,6 @@ import org.jetbrains.annotations.Nullable;
 import javax.annotation.Nonnull;
 import java.util.Optional;
 
-@SuppressWarnings("null")
 public class ImportedBlock extends BaseEntityBlock {
     public static final @Nonnull DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
     private static final int ROTATION_COMPENSATION_STEPS = 3;
@@ -95,6 +94,7 @@ public class ImportedBlock extends BaseEntityBlock {
         super.setPlacedBy(level, pos, state, placer, stack);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void onRemove(@Nonnull BlockState state, @Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {

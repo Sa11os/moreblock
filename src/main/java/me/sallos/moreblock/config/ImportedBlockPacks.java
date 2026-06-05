@@ -54,7 +54,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipException;
 
-@SuppressWarnings("null")
 public final class ImportedBlockPacks {
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
     private static final String DYNAMIC_ANIMATION_NAME = "config_block_idle.animation.json";

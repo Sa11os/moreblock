@@ -51,7 +51,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 @Mod(Moreblock.MODID)
-@SuppressWarnings("null")
 public class Moreblock {
     public static final Logger LOGGER = LogManager.getLogger(Moreblock.class);
     public static final String MODID = "moreblock";

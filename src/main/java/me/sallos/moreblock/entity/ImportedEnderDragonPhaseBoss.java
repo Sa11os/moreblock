@@ -10,7 +10,6 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.Comparator;
 
-@SuppressWarnings("null")
 final class ImportedEnderDragonPhaseBoss {
     private static final String ANIMATION_FLY_LOOP = "fly_loop";
     private static final String ANIMATION_FLY_BANK = "fly_bank";

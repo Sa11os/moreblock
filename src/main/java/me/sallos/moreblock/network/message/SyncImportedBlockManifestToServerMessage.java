@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-@SuppressWarnings("null")
 public final class SyncImportedBlockManifestToServerMessage {
     private static final int MAX_ENTRY_COUNT = 512;
     private static final int MAX_REGISTRY_NAME_LENGTH = 128;

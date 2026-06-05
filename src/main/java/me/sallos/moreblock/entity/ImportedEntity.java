@@ -34,7 +34,6 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-@SuppressWarnings("null")
 public class ImportedEntity extends PathfinderMob implements GeoEntity, RangedAttackMob {
     private static final ResourceLocation ENDER_DRAGON_AI_TEMPLATE = ResourceLocation.fromNamespaceAndPath("minecraft", "ender_dragon");
     private static final EntityDataAccessor<String> DATA_FORCED_ANIMATION = SynchedEntityData.defineId(ImportedEntity.class, EntityDataSerializers.STRING);
@@ -48,7 +47,6 @@ public class ImportedEntity extends PathfinderMob implements GeoEntity, RangedAt
     private boolean playingForcedAnimation;
     private boolean activeForcedAnimationLoop;
     private ImportedEnderDragonPhaseBoss enderDragonPhaseBoss;
-    private String lastLoggedForcedAnimation;
     private String lastAppliedForcedAnimation;
     private ImportedEntityPacks.EntityAnimationState lastLoggedDesiredAnimationState;
     private String lastLoggedDesiredAnimationName;
@@ -423,7 +421,6 @@ public class ImportedEntity extends PathfinderMob implements GeoEntity, RangedAt
                     round(getDeltaMovement().y),
                     round(getDeltaMovement().z)
             );
-            lastLoggedForcedAnimation = animationName + "|" + loop;
         }
     }
 
@@ -438,7 +435,6 @@ public class ImportedEntity extends PathfinderMob implements GeoEntity, RangedAt
                     getBossPhaseId(),
                     tickCount
             );
-            lastLoggedForcedAnimation = null;
         }
     }
 

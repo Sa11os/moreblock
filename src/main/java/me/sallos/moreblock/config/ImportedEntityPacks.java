@@ -2,7 +2,6 @@ package me.sallos.moreblock.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -35,7 +34,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -47,7 +45,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipException;
 
-@SuppressWarnings("null")
 public final class ImportedEntityPacks {
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
     private static final String DYNAMIC_ANIMATION_NAME = "config_entity_idle.animation.json";
@@ -125,6 +122,7 @@ public final class ImportedEntityPacks {
         return Collections.unmodifiableMap(DYNAMIC_ENTITY_TYPES);
     }
 
+    @SuppressWarnings("unchecked")
     public static synchronized Map<String, RegistryObject<Item>> registerEggItems(DeferredRegister<Item> registry) {
         bootstrap();
         for (Definition definition : DEFINITIONS) {

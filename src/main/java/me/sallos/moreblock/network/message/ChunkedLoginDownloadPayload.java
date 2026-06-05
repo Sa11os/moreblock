@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-@SuppressWarnings("null")
 public final class ChunkedLoginDownloadPayload {
     private static final int MAX_DOWNLOAD_FRAGMENT_BYTES = 256 * 1024;
     private static final int MAX_PACK_TYPE_LENGTH = 16;
