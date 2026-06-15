@@ -205,10 +205,10 @@ tasks.named('jar', Jar).configure {
     finalizedBy 'reobfJar'
 }
 
-def modCopyTargets = [
-        testClient   : 'F:/Minecraft/test/versions/1.20.1-Forge_47.4.16/mods',
-        elementClient: 'F:/Minecraft/yaosu/versions/1.20.1-Forge_47.4.13/mods'
-]
+def modCopyTargetsFile = rootProject.file('mod-copy-targets.txt')
+def modCopyTargets = modCopyTargetsFile.exists()
+        ? modCopyTargetsFile.readLines('UTF-8').collect { it.trim() }.findAll { it && !it.startsWith('#') }
+        : []
 
 def registerModCopyTask = { String taskName, String targetPath ->
     tasks.register(taskName) {
@@ -243,11 +243,12 @@ def registerModCopyTask = { String taskName, String targetPath ->
     }
 }
 
-def copyModToTestClient = registerModCopyTask('copyModToTestClient', modCopyTargets.testClient)
-def copyModToElementClient = registerModCopyTask('copyModToElementClient', modCopyTargets.elementClient)
+def copyModTasks = modCopyTargets.withIndex().collect { targetPath, index ->
+    registerModCopyTask("copyModToTarget${index + 1}", targetPath)
+}
 
 tasks.named('build') {
-    finalizedBy(copyModToTestClient, copyModToElementClient)
+    finalizedBy(copyModTasks)
 }
 
 tasks.withType(JavaCompile).configureEach {
